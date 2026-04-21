@@ -461,6 +461,32 @@ function RoomProps({ r, onChange, onDelete, onDuplicate }: { r: Room; onChange: 
         <Row label="Position"><div className="grid w-full grid-cols-2 gap-1.5"><NumField v={r.x} suffix="x" onChange={n => onChange({ x: n })} /><NumField v={r.y} suffix="y" onChange={n => onChange({ y: n })} /></div></Row>
         <Row label="Size"><div className="grid w-full grid-cols-2 gap-1.5"><NumField v={r.w} suffix="w" onChange={n => onChange({ w: Math.max(60, n) })} /><NumField v={r.h} suffix="h" onChange={n => onChange({ h: Math.max(60, n) })} /></div></Row>
         <Row label="Floor"><ColorField value={r.fill} onChange={v => onChange({ fill: v })} /></Row>
+        <div className="px-3 pb-1 text-xs text-muted-foreground">Shape</div>
+        <div className="flex gap-1 px-3 pb-2">
+          {ROOM_SHAPES.map(s => (
+            <button key={s.value} onClick={() => onChange({ shape: s.value })}
+              className={`flex-1 rounded-md border px-2 py-1 text-[11px] ${r.shape===s.value ? "border-primary bg-accent/40" : "border-border hover:bg-secondary"}`}>
+              {s.label}
+            </button>
+          ))}
+        </div>
+        {r.shape === "l-shape" && (
+          <>
+            <Row label="Notch">
+              <input type="range" min={20} max={75} value={Math.round((r.notch ?? 0.45) * 100)}
+                onChange={e => onChange({ notch: +e.target.value / 100 })} className="w-full accent-primary" />
+            </Row>
+            <div className="px-3 pb-1 text-xs text-muted-foreground">Cut corner</div>
+            <div className="grid grid-cols-4 gap-1 px-3 pb-2">
+              {(["tl","tr","bl","br"] as const).map(c => (
+                <button key={c} onClick={() => onChange({ corner: c })}
+                  className={`rounded-md border px-2 py-1 text-[11px] uppercase ${r.corner===c ? "border-primary bg-accent/40" : "border-border hover:bg-secondary"}`}>
+                  {c}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
         <div className="px-3 pb-1 text-xs text-muted-foreground">Quick presets</div>
         <div className="flex flex-wrap gap-1 px-3 pb-2">
           {ROOM_PRESETS.map(p => (
@@ -487,6 +513,26 @@ function DoorProps({ d, onChange, onDelete }: { d: Door; onChange: (p: Partial<D
         </div>
       </Section>
       <ActionButtons onDelete={onDelete} />
+    </>
+  );
+}
+
+function PartitionProps({ p, onChange, onDelete, onDuplicate }: { p: Partition; onChange: (patch: Partial<Partition>) => void; onDelete: () => void; onDuplicate: () => void }) {
+  const len = Math.round(Math.hypot(p.x2 - p.x1, p.y2 - p.y1));
+  const angle = Math.round(Math.atan2(p.y2 - p.y1, p.x2 - p.x1) * 180 / Math.PI);
+  return (
+    <>
+      <Section title="Partition Wall">
+        <Row label="Start"><div className="grid w-full grid-cols-2 gap-1.5"><NumField v={p.x1} suffix="x" onChange={n => onChange({ x1: n })} /><NumField v={p.y1} suffix="y" onChange={n => onChange({ y1: n })} /></div></Row>
+        <Row label="End"><div className="grid w-full grid-cols-2 gap-1.5"><NumField v={p.x2} suffix="x" onChange={n => onChange({ x2: n })} /><NumField v={p.y2} suffix="y" onChange={n => onChange({ y2: n })} /></div></Row>
+        <Row label="Length"><div className="text-xs font-mono text-muted-foreground">{len}px · {angle}°</div></Row>
+        <div className="px-3 pb-2 pt-1">
+          <div className="mb-1 flex items-center justify-between text-xs text-muted-foreground"><span>Thickness</span><span className="font-mono">{p.thickness}px</span></div>
+          <input type="range" min={2} max={20} value={p.thickness} onChange={e => onChange({ thickness: +e.target.value })} className="w-full accent-primary" />
+        </div>
+        <Row label="Color"><ColorField value={p.color} onChange={v => onChange({ color: v })} /></Row>
+      </Section>
+      <ActionButtons onDuplicate={onDuplicate} onDelete={onDelete} />
     </>
   );
 }

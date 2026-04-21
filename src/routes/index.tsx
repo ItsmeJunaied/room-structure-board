@@ -347,6 +347,7 @@ function Index() {
             {selFurn && <FurnitureProps f={selFurn} onChange={(p) => updateF(selFurn.id, p)} onDelete={deleteSelection} onDuplicate={duplicateSelection} />}
             {selRoom && <RoomProps r={selRoom} onChange={(p) => updateR(selRoom.id, p)} onDelete={deleteSelection} onDuplicate={duplicateSelection} />}
             {selDoor && <DoorProps d={selDoor} onChange={(p) => updateD(selDoor.id, p)} onDelete={deleteSelection} />}
+            {selPart && <PartitionProps p={selPart} onChange={(patch) => updateP(selPart.id, patch)} onDelete={deleteSelection} onDuplicate={duplicateSelection} />}
           </aside>
         </div>
       </div>

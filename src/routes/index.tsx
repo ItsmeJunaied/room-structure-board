@@ -257,7 +257,7 @@ function Index() {
                 </div>
               ))}
 
-              {(rooms.length + furniture.length + doors.length) > 0 && (
+              {(rooms.length + furniture.length + doors.length + partitions.length) > 0 && (
                 <>
                   <div className="mt-4 mb-2 flex items-center gap-1.5 px-1 text-xs font-semibold">
                     <Layers className="h-3.5 w-3.5" /> Layers
@@ -265,7 +265,11 @@ function Index() {
                   <ul className="space-y-0.5">
                     {rooms.map(r => (
                       <LayerRow key={r.id} active={selection?.kind==="room" && selection.id===r.id}
-                        color={r.fill} label={`▢ ${r.name}`} onClick={() => setSelection({ kind: "room", id: r.id })} />
+                        color={r.fill} label={`▢ ${r.name} (${r.shape})`} onClick={() => setSelection({ kind: "room", id: r.id })} />
+                    ))}
+                    {partitions.map(pt => (
+                      <LayerRow key={pt.id} active={selection?.kind==="partition" && selection.id===pt.id}
+                        color={pt.color} label="— Partition" onClick={() => setSelection({ kind: "partition", id: pt.id })} />
                     ))}
                     {doors.map(d => (
                       <LayerRow key={d.id} active={selection?.kind==="door" && selection.id===d.id}
@@ -293,15 +297,18 @@ function Index() {
             <div className="absolute inset-0 p-4">
               <div className="h-full w-full overflow-hidden rounded-xl bg-card shadow-sm ring-1 ring-border">
                 <FloorCanvas
-                  rooms={rooms} doors={doors} furniture={furniture}
+                  rooms={rooms} doors={doors} partitions={partitions} furniture={furniture}
                   selection={selection} tool={tool}
                   roomFill={ROOM_PRESETS[roomPresetIdx].fill}
+                  roomShape={roomShape}
                   onSelect={setSelection}
                   onUpdateFurniture={updateF}
                   onUpdateRoom={updateR}
                   onUpdateDoor={updateD}
+                  onUpdatePartition={updateP}
                   onAddRoom={(r) => setRooms(a => [...a, { ...r, name: ROOM_PRESETS[roomPresetIdx].name, fill: ROOM_PRESETS[roomPresetIdx].fill }])}
                   onAddDoor={(d) => setDoors(a => [...a, d])}
+                  onAddPartition={(pt) => setPartitions(a => [...a, pt])}
                   onSetTool={setTool}
                 />
               </div>
@@ -311,6 +318,7 @@ function Index() {
             <div className="absolute bottom-6 left-1/2 flex -translate-x-1/2 items-center gap-1 rounded-xl border border-border bg-card px-2 py-1.5 shadow-lg">
               <ToolBtn active={tool==="select"} onClick={() => setTool("select")} title="Select (V)"><MousePointer2 className="h-4 w-4" /></ToolBtn>
               <ToolBtn active={tool==="room"} onClick={() => setTool("room")} title="Room (R)"><Square className="h-4 w-4" /></ToolBtn>
+              <ToolBtn active={tool==="partition"} onClick={() => setTool("partition")} title="Partition (P)"><Minus className="h-4 w-4" /></ToolBtn>
               <ToolBtn active={tool==="door"} onClick={() => setTool("door")} title="Door (D)"><DoorOpen className="h-4 w-4" /></ToolBtn>
               <div className="mx-1 h-5 w-px bg-border" />
               <button disabled={!selection} onClick={duplicateSelection} className="rounded-lg p-2 hover:bg-secondary disabled:opacity-40"><Copy className="h-4 w-4" /></button>
@@ -318,8 +326,9 @@ function Index() {
               <div className="mx-1 h-5 w-px bg-border" />
               <span className="px-2 text-xs text-muted-foreground">
                 {tool==="room" ? "Drag to draw room" :
+                 tool==="partition" ? "Drag to draw partition" :
                  tool==="door" ? "Click to place door" :
-                 selFurn ? selFurn.name : selRoom ? selRoom.name : selDoor ? "Door" : "Select an item"}
+                 selFurn ? selFurn.name : selRoom ? selRoom.name : selDoor ? "Door" : selPart ? "Partition" : "Select an item"}
               </span>
             </div>
           </main>

@@ -4,11 +4,12 @@ import {
   Home, Sparkles, Monitor, Tablet, Smartphone, Eye, Moon, Sun, Download,
   Plus, Trash2, Copy, MousePointer2, Search, Settings, ChevronDown,
   Square, DoorOpen, Sofa, Bed, Armchair, Lamp, Flower2, Tv, Bath, Wind, Layers,
+  Circle, Minus, Shapes,
 } from "lucide-react";
 import { FloorCanvas } from "@/components/FloorCanvas";
 import {
-  DEFAULTS, ROOM_PRESETS,
-  type Furniture, type FurnitureType, type Room, type Door, type Selection, type Tool,
+  DEFAULTS, ROOM_PRESETS, ROOM_SHAPES,
+  type Furniture, type FurnitureType, type Room, type Door, type Partition, type Selection, type Tool, type RoomShape,
 } from "@/lib/floorplan-types";
 
 export const Route = createFileRoute("/")({ component: Index });
@@ -36,10 +37,12 @@ const PALETTE: { type: FurnitureType; icon: typeof Square; group: string }[] = [
 function Index() {
   const [rooms, setRooms] = useState<Room[]>([]);
   const [doors, setDoors] = useState<Door[]>([]);
+  const [partitions, setPartitions] = useState<Partition[]>([]);
   const [furniture, setFurniture] = useState<Furniture[]>([]);
   const [selection, setSelection] = useState<Selection>(null);
   const [tool, setTool] = useState<Tool>("select");
   const [roomPresetIdx, setRoomPresetIdx] = useState(0);
+  const [roomShape, setRoomShape] = useState<RoomShape>("rect");
   const [dark, setDark] = useState(false);
 
   useEffect(() => { document.documentElement.classList.toggle("dark", dark); }, [dark]);
@@ -52,6 +55,7 @@ function Index() {
       if (e.key === "Escape") { setTool("select"); setSelection(null); }
       if (e.key.toLowerCase() === "r") setTool("room");
       if (e.key.toLowerCase() === "d") setTool("door");
+      if (e.key.toLowerCase() === "p") setTool("partition");
       if (e.key.toLowerCase() === "v") setTool("select");
     };
     window.addEventListener("keydown", onKey);
@@ -64,6 +68,8 @@ function Index() {
     setRooms(arr => arr.map(r => r.id === id ? { ...r, ...patch } : r));
   const updateD = (id: string, patch: Partial<Door>) =>
     setDoors(arr => arr.map(d => d.id === id ? { ...d, ...patch } : d));
+  const updateP = (id: string, patch: Partial<Partition>) =>
+    setPartitions(arr => arr.map(x => x.id === id ? { ...x, ...patch } : x));
 
   const addFurniture = (type: FurnitureType) => {
     // Drop into center of first room if any, else center of canvas
@@ -82,6 +88,7 @@ function Index() {
     if (selection.kind === "furniture") setFurniture(a => a.filter(x => x.id !== selection.id));
     if (selection.kind === "room") setRooms(a => a.filter(x => x.id !== selection.id));
     if (selection.kind === "door") setDoors(a => a.filter(x => x.id !== selection.id));
+    if (selection.kind === "partition") setPartitions(a => a.filter(x => x.id !== selection.id));
     setSelection(null);
   };
 
@@ -95,11 +102,15 @@ function Index() {
       const r = rooms.find(x => x.id === selection.id); if (!r) return;
       const dup = { ...r, id: uid(), x: r.x + 24, y: r.y + 24 };
       setRooms(a => [...a, dup]); setSelection({ kind: "room", id: dup.id });
+    } else if (selection.kind === "partition") {
+      const pt = partitions.find(x => x.id === selection.id); if (!pt) return;
+      const dup = { ...pt, id: uid(), x1: pt.x1 + 20, y1: pt.y1 + 20, x2: pt.x2 + 20, y2: pt.y2 + 20 };
+      setPartitions(a => [...a, dup]); setSelection({ kind: "partition", id: dup.id });
     }
   };
 
   const exportJSON = () => {
-    const data = JSON.stringify({ rooms, doors, furniture }, null, 2);
+    const data = JSON.stringify({ rooms, doors, partitions, furniture }, null, 2);
     const blob = new Blob([data], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -109,13 +120,14 @@ function Index() {
 
   const clearAll = () => {
     if (!confirm("Clear the entire canvas?")) return;
-    setRooms([]); setDoors([]); setFurniture([]); setSelection(null);
+    setRooms([]); setDoors([]); setPartitions([]); setFurniture([]); setSelection(null);
   };
 
   const groups = Array.from(new Set(PALETTE.map(p => p.group)));
   const selFurn = selection?.kind === "furniture" ? furniture.find(f => f.id === selection.id) : null;
   const selRoom = selection?.kind === "room" ? rooms.find(r => r.id === selection.id) : null;
   const selDoor = selection?.kind === "door" ? doors.find(d => d.id === selection.id) : null;
+  const selPart = selection?.kind === "partition" ? partitions.find(p => p.id === selection.id) : null;
 
   return (
     <div className="min-h-screen bg-background p-3">
@@ -162,15 +174,35 @@ function Index() {
           <aside className="flex w-72 flex-col border-r border-border">
             <div className="border-b border-border p-4">
               <div className="mb-3 text-sm font-semibold">Build</div>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-3 gap-1.5">
                 <button onClick={() => setTool("room")}
-                  className={`flex items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition ${tool==="room" ? "border-primary bg-primary text-primary-foreground" : "border-border hover:bg-secondary"}`}>
-                  <Square className="h-3.5 w-3.5" /> Add Room
+                  className={`flex items-center justify-center gap-1 rounded-lg border px-2 py-2 text-xs font-medium transition ${tool==="room" ? "border-primary bg-primary text-primary-foreground" : "border-border hover:bg-secondary"}`}>
+                  <Square className="h-3.5 w-3.5" /> Room
+                </button>
+                <button onClick={() => setTool("partition")}
+                  className={`flex items-center justify-center gap-1 rounded-lg border px-2 py-2 text-xs font-medium transition ${tool==="partition" ? "border-primary bg-primary text-primary-foreground" : "border-border hover:bg-secondary"}`}>
+                  <Minus className="h-3.5 w-3.5" /> Wall
                 </button>
                 <button onClick={() => setTool("door")}
-                  className={`flex items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition ${tool==="door" ? "border-primary bg-primary text-primary-foreground" : "border-border hover:bg-secondary"}`}>
-                  <DoorOpen className="h-3.5 w-3.5" /> Add Door
+                  className={`flex items-center justify-center gap-1 rounded-lg border px-2 py-2 text-xs font-medium transition ${tool==="door" ? "border-primary bg-primary text-primary-foreground" : "border-border hover:bg-secondary"}`}>
+                  <DoorOpen className="h-3.5 w-3.5" /> Door
                 </button>
+              </div>
+
+              <div className="mt-3">
+                <div className="mb-1.5 text-[11px] font-medium text-muted-foreground">Room shape</div>
+                <div className="grid grid-cols-3 gap-1">
+                  {ROOM_SHAPES.map(s => {
+                    const Icon = s.value === "circle" ? Circle : s.value === "l-shape" ? Shapes : Square;
+                    return (
+                      <button key={s.value} onClick={() => setRoomShape(s.value)}
+                        className={`flex flex-col items-center gap-1 rounded-md border px-2 py-1.5 text-[10px] ${roomShape===s.value ? "border-primary bg-accent/40" : "border-border hover:bg-secondary"}`}>
+                        <Icon className="h-3.5 w-3.5" />
+                        {s.label}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
 
               <div className="mt-3">
@@ -188,7 +220,12 @@ function Index() {
 
               {tool === "room" && (
                 <div className="mt-3 rounded-md bg-accent/40 px-3 py-2 text-[11px] text-accent-foreground">
-                  Drag on the canvas to draw a {ROOM_PRESETS[roomPresetIdx].name.toLowerCase()}.
+                  Drag on the canvas to draw a {roomShape} {ROOM_PRESETS[roomPresetIdx].name.toLowerCase()}.
+                </div>
+              )}
+              {tool === "partition" && (
+                <div className="mt-3 rounded-md bg-accent/40 px-3 py-2 text-[11px] text-accent-foreground">
+                  Drag inside a room to draw a partition wall.
                 </div>
               )}
               {tool === "door" && (
@@ -220,7 +257,7 @@ function Index() {
                 </div>
               ))}
 
-              {(rooms.length + furniture.length + doors.length) > 0 && (
+              {(rooms.length + furniture.length + doors.length + partitions.length) > 0 && (
                 <>
                   <div className="mt-4 mb-2 flex items-center gap-1.5 px-1 text-xs font-semibold">
                     <Layers className="h-3.5 w-3.5" /> Layers
@@ -228,7 +265,11 @@ function Index() {
                   <ul className="space-y-0.5">
                     {rooms.map(r => (
                       <LayerRow key={r.id} active={selection?.kind==="room" && selection.id===r.id}
-                        color={r.fill} label={`▢ ${r.name}`} onClick={() => setSelection({ kind: "room", id: r.id })} />
+                        color={r.fill} label={`▢ ${r.name} (${r.shape})`} onClick={() => setSelection({ kind: "room", id: r.id })} />
+                    ))}
+                    {partitions.map(pt => (
+                      <LayerRow key={pt.id} active={selection?.kind==="partition" && selection.id===pt.id}
+                        color={pt.color} label="— Partition" onClick={() => setSelection({ kind: "partition", id: pt.id })} />
                     ))}
                     {doors.map(d => (
                       <LayerRow key={d.id} active={selection?.kind==="door" && selection.id===d.id}
@@ -256,15 +297,18 @@ function Index() {
             <div className="absolute inset-0 p-4">
               <div className="h-full w-full overflow-hidden rounded-xl bg-card shadow-sm ring-1 ring-border">
                 <FloorCanvas
-                  rooms={rooms} doors={doors} furniture={furniture}
+                  rooms={rooms} doors={doors} partitions={partitions} furniture={furniture}
                   selection={selection} tool={tool}
                   roomFill={ROOM_PRESETS[roomPresetIdx].fill}
+                  roomShape={roomShape}
                   onSelect={setSelection}
                   onUpdateFurniture={updateF}
                   onUpdateRoom={updateR}
                   onUpdateDoor={updateD}
+                  onUpdatePartition={updateP}
                   onAddRoom={(r) => setRooms(a => [...a, { ...r, name: ROOM_PRESETS[roomPresetIdx].name, fill: ROOM_PRESETS[roomPresetIdx].fill }])}
                   onAddDoor={(d) => setDoors(a => [...a, d])}
+                  onAddPartition={(pt) => setPartitions(a => [...a, pt])}
                   onSetTool={setTool}
                 />
               </div>
@@ -274,6 +318,7 @@ function Index() {
             <div className="absolute bottom-6 left-1/2 flex -translate-x-1/2 items-center gap-1 rounded-xl border border-border bg-card px-2 py-1.5 shadow-lg">
               <ToolBtn active={tool==="select"} onClick={() => setTool("select")} title="Select (V)"><MousePointer2 className="h-4 w-4" /></ToolBtn>
               <ToolBtn active={tool==="room"} onClick={() => setTool("room")} title="Room (R)"><Square className="h-4 w-4" /></ToolBtn>
+              <ToolBtn active={tool==="partition"} onClick={() => setTool("partition")} title="Partition (P)"><Minus className="h-4 w-4" /></ToolBtn>
               <ToolBtn active={tool==="door"} onClick={() => setTool("door")} title="Door (D)"><DoorOpen className="h-4 w-4" /></ToolBtn>
               <div className="mx-1 h-5 w-px bg-border" />
               <button disabled={!selection} onClick={duplicateSelection} className="rounded-lg p-2 hover:bg-secondary disabled:opacity-40"><Copy className="h-4 w-4" /></button>
@@ -281,8 +326,9 @@ function Index() {
               <div className="mx-1 h-5 w-px bg-border" />
               <span className="px-2 text-xs text-muted-foreground">
                 {tool==="room" ? "Drag to draw room" :
+                 tool==="partition" ? "Drag to draw partition" :
                  tool==="door" ? "Click to place door" :
-                 selFurn ? selFurn.name : selRoom ? selRoom.name : selDoor ? "Door" : "Select an item"}
+                 selFurn ? selFurn.name : selRoom ? selRoom.name : selDoor ? "Door" : selPart ? "Partition" : "Select an item"}
               </span>
             </div>
           </main>
@@ -301,6 +347,7 @@ function Index() {
             {selFurn && <FurnitureProps f={selFurn} onChange={(p) => updateF(selFurn.id, p)} onDelete={deleteSelection} onDuplicate={duplicateSelection} />}
             {selRoom && <RoomProps r={selRoom} onChange={(p) => updateR(selRoom.id, p)} onDelete={deleteSelection} onDuplicate={duplicateSelection} />}
             {selDoor && <DoorProps d={selDoor} onChange={(p) => updateD(selDoor.id, p)} onDelete={deleteSelection} />}
+            {selPart && <PartitionProps p={selPart} onChange={(patch) => updateP(selPart.id, patch)} onDelete={deleteSelection} onDuplicate={duplicateSelection} />}
           </aside>
         </div>
       </div>
@@ -414,6 +461,32 @@ function RoomProps({ r, onChange, onDelete, onDuplicate }: { r: Room; onChange: 
         <Row label="Position"><div className="grid w-full grid-cols-2 gap-1.5"><NumField v={r.x} suffix="x" onChange={n => onChange({ x: n })} /><NumField v={r.y} suffix="y" onChange={n => onChange({ y: n })} /></div></Row>
         <Row label="Size"><div className="grid w-full grid-cols-2 gap-1.5"><NumField v={r.w} suffix="w" onChange={n => onChange({ w: Math.max(60, n) })} /><NumField v={r.h} suffix="h" onChange={n => onChange({ h: Math.max(60, n) })} /></div></Row>
         <Row label="Floor"><ColorField value={r.fill} onChange={v => onChange({ fill: v })} /></Row>
+        <div className="px-3 pb-1 text-xs text-muted-foreground">Shape</div>
+        <div className="flex gap-1 px-3 pb-2">
+          {ROOM_SHAPES.map(s => (
+            <button key={s.value} onClick={() => onChange({ shape: s.value })}
+              className={`flex-1 rounded-md border px-2 py-1 text-[11px] ${r.shape===s.value ? "border-primary bg-accent/40" : "border-border hover:bg-secondary"}`}>
+              {s.label}
+            </button>
+          ))}
+        </div>
+        {r.shape === "l-shape" && (
+          <>
+            <Row label="Notch">
+              <input type="range" min={20} max={75} value={Math.round((r.notch ?? 0.45) * 100)}
+                onChange={e => onChange({ notch: +e.target.value / 100 })} className="w-full accent-primary" />
+            </Row>
+            <div className="px-3 pb-1 text-xs text-muted-foreground">Cut corner</div>
+            <div className="grid grid-cols-4 gap-1 px-3 pb-2">
+              {(["tl","tr","bl","br"] as const).map(c => (
+                <button key={c} onClick={() => onChange({ corner: c })}
+                  className={`rounded-md border px-2 py-1 text-[11px] uppercase ${r.corner===c ? "border-primary bg-accent/40" : "border-border hover:bg-secondary"}`}>
+                  {c}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
         <div className="px-3 pb-1 text-xs text-muted-foreground">Quick presets</div>
         <div className="flex flex-wrap gap-1 px-3 pb-2">
           {ROOM_PRESETS.map(p => (
@@ -440,6 +513,26 @@ function DoorProps({ d, onChange, onDelete }: { d: Door; onChange: (p: Partial<D
         </div>
       </Section>
       <ActionButtons onDelete={onDelete} />
+    </>
+  );
+}
+
+function PartitionProps({ p, onChange, onDelete, onDuplicate }: { p: Partition; onChange: (patch: Partial<Partition>) => void; onDelete: () => void; onDuplicate: () => void }) {
+  const len = Math.round(Math.hypot(p.x2 - p.x1, p.y2 - p.y1));
+  const angle = Math.round(Math.atan2(p.y2 - p.y1, p.x2 - p.x1) * 180 / Math.PI);
+  return (
+    <>
+      <Section title="Partition Wall">
+        <Row label="Start"><div className="grid w-full grid-cols-2 gap-1.5"><NumField v={p.x1} suffix="x" onChange={n => onChange({ x1: n })} /><NumField v={p.y1} suffix="y" onChange={n => onChange({ y1: n })} /></div></Row>
+        <Row label="End"><div className="grid w-full grid-cols-2 gap-1.5"><NumField v={p.x2} suffix="x" onChange={n => onChange({ x2: n })} /><NumField v={p.y2} suffix="y" onChange={n => onChange({ y2: n })} /></div></Row>
+        <Row label="Length"><div className="text-xs font-mono text-muted-foreground">{len}px · {angle}°</div></Row>
+        <div className="px-3 pb-2 pt-1">
+          <div className="mb-1 flex items-center justify-between text-xs text-muted-foreground"><span>Thickness</span><span className="font-mono">{p.thickness}px</span></div>
+          <input type="range" min={2} max={20} value={p.thickness} onChange={e => onChange({ thickness: +e.target.value })} className="w-full accent-primary" />
+        </div>
+        <Row label="Color"><ColorField value={p.color} onChange={v => onChange({ color: v })} /></Row>
+      </Section>
+      <ActionButtons onDuplicate={onDuplicate} onDelete={onDelete} />
     </>
   );
 }

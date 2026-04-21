@@ -17,14 +17,20 @@ export interface Furniture {
   radius: number;
 }
 
+export type RoomShape = "rect" | "circle" | "l-shape";
+
 export interface Room {
   id: string;
   name: string;
+  shape: RoomShape;
   x: number;
   y: number;
   w: number;
   h: number;
   fill: string;
+  /** For l-shape: notch size as fraction of w/h (0..1), corner: which corner is cut */
+  notch?: number;
+  corner?: "tl" | "tr" | "bl" | "br";
 }
 
 export interface Door {
@@ -35,12 +41,23 @@ export interface Door {
   rotation: number; // degrees
 }
 
-export type Tool = "select" | "room" | "door" | "pan";
+export interface Partition {
+  id: string;
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+  thickness: number;
+  color: string;
+}
+
+export type Tool = "select" | "room" | "door" | "partition" | "pan";
 
 export type Selection =
   | { kind: "furniture"; id: string }
   | { kind: "room"; id: string }
   | { kind: "door"; id: string }
+  | { kind: "partition"; id: string }
   | null;
 
 export const DEFAULTS: Record<FurnitureType, Omit<Furniture, "id" | "x" | "y">> = {
@@ -69,3 +86,31 @@ export const ROOM_PRESETS = [
   { name: "Hallway",     fill: "#EFECE6" },
   { name: "Office",      fill: "#EEEAE2" },
 ];
+
+export const ROOM_SHAPES: { value: RoomShape; label: string }[] = [
+  { value: "rect",    label: "Rectangle" },
+  { value: "circle",  label: "Circle" },
+  { value: "l-shape", label: "L-Shape" },
+];
+
+/** Build SVG path for a room based on its shape. */
+export function roomPath(r: Room): string {
+  if (r.shape === "circle") {
+    const rx = r.w / 2, ry = r.h / 2, cx = r.x + rx, cy = r.y + ry;
+    return `M ${cx - rx} ${cy} a ${rx} ${ry} 0 1 0 ${rx * 2} 0 a ${rx} ${ry} 0 1 0 ${-rx * 2} 0 Z`;
+  }
+  if (r.shape === "l-shape") {
+    const n = r.notch ?? 0.45;
+    const nw = r.w * n, nh = r.h * n;
+    const c = r.corner ?? "tr";
+    const { x, y, w, h } = r;
+    // Build L by cutting the chosen corner
+    switch (c) {
+      case "tr": return `M ${x} ${y} L ${x + w - nw} ${y} L ${x + w - nw} ${y + nh} L ${x + w} ${y + nh} L ${x + w} ${y + h} L ${x} ${y + h} Z`;
+      case "tl": return `M ${x + nw} ${y} L ${x + w} ${y} L ${x + w} ${y + h} L ${x} ${y + h} L ${x} ${y + nh} L ${x + nw} ${y + nh} Z`;
+      case "br": return `M ${x} ${y} L ${x + w} ${y} L ${x + w} ${y + h - nh} L ${x + w - nw} ${y + h - nh} L ${x + w - nw} ${y + h} L ${x} ${y + h} Z`;
+      case "bl": return `M ${x} ${y} L ${x + w} ${y} L ${x + w} ${y + h} L ${x + nw} ${y + h} L ${x + nw} ${y + h - nh} L ${x} ${y + h - nh} Z`;
+    }
+  }
+  return `M ${r.x} ${r.y} h ${r.w} v ${r.h} h ${-r.w} Z`;
+}

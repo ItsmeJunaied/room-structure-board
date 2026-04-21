@@ -4,11 +4,12 @@ import {
   Home, Sparkles, Monitor, Tablet, Smartphone, Eye, Moon, Sun, Download,
   Plus, Trash2, Copy, MousePointer2, Search, Settings, ChevronDown,
   Square, DoorOpen, Sofa, Bed, Armchair, Lamp, Flower2, Tv, Bath, Wind, Layers,
+  Circle, Minus, Shapes,
 } from "lucide-react";
 import { FloorCanvas } from "@/components/FloorCanvas";
 import {
-  DEFAULTS, ROOM_PRESETS,
-  type Furniture, type FurnitureType, type Room, type Door, type Selection, type Tool,
+  DEFAULTS, ROOM_PRESETS, ROOM_SHAPES,
+  type Furniture, type FurnitureType, type Room, type Door, type Partition, type Selection, type Tool, type RoomShape,
 } from "@/lib/floorplan-types";
 
 export const Route = createFileRoute("/")({ component: Index });
@@ -36,10 +37,12 @@ const PALETTE: { type: FurnitureType; icon: typeof Square; group: string }[] = [
 function Index() {
   const [rooms, setRooms] = useState<Room[]>([]);
   const [doors, setDoors] = useState<Door[]>([]);
+  const [partitions, setPartitions] = useState<Partition[]>([]);
   const [furniture, setFurniture] = useState<Furniture[]>([]);
   const [selection, setSelection] = useState<Selection>(null);
   const [tool, setTool] = useState<Tool>("select");
   const [roomPresetIdx, setRoomPresetIdx] = useState(0);
+  const [roomShape, setRoomShape] = useState<RoomShape>("rect");
   const [dark, setDark] = useState(false);
 
   useEffect(() => { document.documentElement.classList.toggle("dark", dark); }, [dark]);
@@ -52,6 +55,7 @@ function Index() {
       if (e.key === "Escape") { setTool("select"); setSelection(null); }
       if (e.key.toLowerCase() === "r") setTool("room");
       if (e.key.toLowerCase() === "d") setTool("door");
+      if (e.key.toLowerCase() === "p") setTool("partition");
       if (e.key.toLowerCase() === "v") setTool("select");
     };
     window.addEventListener("keydown", onKey);
@@ -64,6 +68,8 @@ function Index() {
     setRooms(arr => arr.map(r => r.id === id ? { ...r, ...patch } : r));
   const updateD = (id: string, patch: Partial<Door>) =>
     setDoors(arr => arr.map(d => d.id === id ? { ...d, ...patch } : d));
+  const updateP = (id: string, patch: Partial<Partition>) =>
+    setPartitions(arr => arr.map(x => x.id === id ? { ...x, ...patch } : x));
 
   const addFurniture = (type: FurnitureType) => {
     // Drop into center of first room if any, else center of canvas
@@ -82,6 +88,7 @@ function Index() {
     if (selection.kind === "furniture") setFurniture(a => a.filter(x => x.id !== selection.id));
     if (selection.kind === "room") setRooms(a => a.filter(x => x.id !== selection.id));
     if (selection.kind === "door") setDoors(a => a.filter(x => x.id !== selection.id));
+    if (selection.kind === "partition") setPartitions(a => a.filter(x => x.id !== selection.id));
     setSelection(null);
   };
 
@@ -95,11 +102,15 @@ function Index() {
       const r = rooms.find(x => x.id === selection.id); if (!r) return;
       const dup = { ...r, id: uid(), x: r.x + 24, y: r.y + 24 };
       setRooms(a => [...a, dup]); setSelection({ kind: "room", id: dup.id });
+    } else if (selection.kind === "partition") {
+      const pt = partitions.find(x => x.id === selection.id); if (!pt) return;
+      const dup = { ...pt, id: uid(), x1: pt.x1 + 20, y1: pt.y1 + 20, x2: pt.x2 + 20, y2: pt.y2 + 20 };
+      setPartitions(a => [...a, dup]); setSelection({ kind: "partition", id: dup.id });
     }
   };
 
   const exportJSON = () => {
-    const data = JSON.stringify({ rooms, doors, furniture }, null, 2);
+    const data = JSON.stringify({ rooms, doors, partitions, furniture }, null, 2);
     const blob = new Blob([data], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -109,13 +120,14 @@ function Index() {
 
   const clearAll = () => {
     if (!confirm("Clear the entire canvas?")) return;
-    setRooms([]); setDoors([]); setFurniture([]); setSelection(null);
+    setRooms([]); setDoors([]); setPartitions([]); setFurniture([]); setSelection(null);
   };
 
   const groups = Array.from(new Set(PALETTE.map(p => p.group)));
   const selFurn = selection?.kind === "furniture" ? furniture.find(f => f.id === selection.id) : null;
   const selRoom = selection?.kind === "room" ? rooms.find(r => r.id === selection.id) : null;
   const selDoor = selection?.kind === "door" ? doors.find(d => d.id === selection.id) : null;
+  const selPart = selection?.kind === "partition" ? partitions.find(p => p.id === selection.id) : null;
 
   return (
     <div className="min-h-screen bg-background p-3">

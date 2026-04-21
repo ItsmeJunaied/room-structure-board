@@ -174,15 +174,35 @@ function Index() {
           <aside className="flex w-72 flex-col border-r border-border">
             <div className="border-b border-border p-4">
               <div className="mb-3 text-sm font-semibold">Build</div>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-3 gap-1.5">
                 <button onClick={() => setTool("room")}
-                  className={`flex items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition ${tool==="room" ? "border-primary bg-primary text-primary-foreground" : "border-border hover:bg-secondary"}`}>
-                  <Square className="h-3.5 w-3.5" /> Add Room
+                  className={`flex items-center justify-center gap-1 rounded-lg border px-2 py-2 text-xs font-medium transition ${tool==="room" ? "border-primary bg-primary text-primary-foreground" : "border-border hover:bg-secondary"}`}>
+                  <Square className="h-3.5 w-3.5" /> Room
+                </button>
+                <button onClick={() => setTool("partition")}
+                  className={`flex items-center justify-center gap-1 rounded-lg border px-2 py-2 text-xs font-medium transition ${tool==="partition" ? "border-primary bg-primary text-primary-foreground" : "border-border hover:bg-secondary"}`}>
+                  <Minus className="h-3.5 w-3.5" /> Wall
                 </button>
                 <button onClick={() => setTool("door")}
-                  className={`flex items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition ${tool==="door" ? "border-primary bg-primary text-primary-foreground" : "border-border hover:bg-secondary"}`}>
-                  <DoorOpen className="h-3.5 w-3.5" /> Add Door
+                  className={`flex items-center justify-center gap-1 rounded-lg border px-2 py-2 text-xs font-medium transition ${tool==="door" ? "border-primary bg-primary text-primary-foreground" : "border-border hover:bg-secondary"}`}>
+                  <DoorOpen className="h-3.5 w-3.5" /> Door
                 </button>
+              </div>
+
+              <div className="mt-3">
+                <div className="mb-1.5 text-[11px] font-medium text-muted-foreground">Room shape</div>
+                <div className="grid grid-cols-3 gap-1">
+                  {ROOM_SHAPES.map(s => {
+                    const Icon = s.value === "circle" ? Circle : s.value === "l-shape" ? Shapes : Square;
+                    return (
+                      <button key={s.value} onClick={() => setRoomShape(s.value)}
+                        className={`flex flex-col items-center gap-1 rounded-md border px-2 py-1.5 text-[10px] ${roomShape===s.value ? "border-primary bg-accent/40" : "border-border hover:bg-secondary"}`}>
+                        <Icon className="h-3.5 w-3.5" />
+                        {s.label}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
 
               <div className="mt-3">
@@ -200,7 +220,12 @@ function Index() {
 
               {tool === "room" && (
                 <div className="mt-3 rounded-md bg-accent/40 px-3 py-2 text-[11px] text-accent-foreground">
-                  Drag on the canvas to draw a {ROOM_PRESETS[roomPresetIdx].name.toLowerCase()}.
+                  Drag on the canvas to draw a {roomShape} {ROOM_PRESETS[roomPresetIdx].name.toLowerCase()}.
+                </div>
+              )}
+              {tool === "partition" && (
+                <div className="mt-3 rounded-md bg-accent/40 px-3 py-2 text-[11px] text-accent-foreground">
+                  Drag inside a room to draw a partition wall.
                 </div>
               )}
               {tool === "door" && (

@@ -97,7 +97,7 @@ function Index() {
     });
   };
 
-  const PALETTE = board === "salon" ? SALON_PALETTE : FLOOR_PALETTE;
+  const PALETTE = board === "salon" ? SALON_PALETTE : board === "restaurant" ? RESTAURANT_PALETTE : FLOOR_PALETTE;
 
   // Reset selection when switching boards
   useEffect(() => { setSelection(null); setMultiSelection([]); setCtxMenu(null); }, [board]);
@@ -312,7 +312,7 @@ function Index() {
                       className={`flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-sm hover:bg-secondary ${board === b.id ? "bg-accent/40" : ""}`}
                     >
                       <span className="grid h-5 w-5 place-items-center rounded bg-primary/15 text-primary">
-                        {b.id === "salon" ? <ScissorsIcon className="h-3 w-3" /> : <Home className="h-3 w-3" />}
+                        {b.id === "salon" ? <ScissorsIcon className="h-3 w-3" /> : b.id === "restaurant" ? <UtensilsCrossed className="h-3 w-3" /> : <Home className="h-3 w-3" />}
                       </span>
                       <span className="flex-1">{b.name}</span>
                       {board === b.id && <span className="text-xs text-primary">●</span>}
@@ -353,7 +353,7 @@ function Index() {
               <div className="mb-3 flex items-center justify-between text-sm font-semibold">
                 <span>Build</span>
                 <span className="rounded-full bg-accent/40 px-2 py-0.5 text-[10px] uppercase tracking-wide text-accent-foreground">
-                  {board === "salon" ? "Salon" : "Floor"}
+                  {board === "salon" ? "Salon" : board === "restaurant" ? "Restaurant" : "Floor"}
                 </span>
               </div>
               <div className="grid grid-cols-3 gap-1.5">

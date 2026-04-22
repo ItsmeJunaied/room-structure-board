@@ -564,7 +564,127 @@ function FurnitureShape({ f, onMouseDown, onContextMenu }: { f: Furniture; onMou
           <rect x={f.x + 6} y={f.y + 6} width={f.w - 12} height={f.h - 12} rx={f.radius - 4} fill="white" opacity={0.6} stroke={f.stroke} strokeWidth={0.8} pointerEvents="none" />
         </g>
       );
+    case "dining-rect":
+    case "dining-square":
+      return <DiningTable f={f} round={false} onMouseDown={onMouseDown} onContextMenu={onContextMenu} />;
+    case "dining-round":
+      return <DiningTable f={f} round={true} onMouseDown={onMouseDown} onContextMenu={onContextMenu} />;
+    case "booth":
+      return <BoothTable f={f} onMouseDown={onMouseDown} onContextMenu={onContextMenu} />;
     default:
       return <rect x={f.x} y={f.y} width={f.w} height={f.h} rx={f.radius} {...common} />;
   }
+}
+
+/** Restaurant dining table: rectangle/square/round with auto-placed chairs around it. */
+function DiningTable({ f, round, onMouseDown, onContextMenu }: { f: Furniture; round: boolean; onMouseDown: (e: React.MouseEvent) => void; onContextMenu?: (e: React.MouseEvent) => void }) {
+  const cx = f.x + f.w / 2;
+  const cy = f.y + f.h / 2;
+  const n = Math.max(0, Math.min(20, f.chairs ?? 0));
+  const chairSize = 18;
+  const gap = 6;
+
+  // Generate chair positions (cx, cy, angle) around the table edge
+  const chairs: { cx: number; cy: number; rot: number }[] = [];
+
+  if (round) {
+    const rx = f.w / 2 + gap + chairSize / 2;
+    const ry = f.h / 2 + gap + chairSize / 2;
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2 - Math.PI / 2;
+      chairs.push({ cx: cx + Math.cos(a) * rx, cy: cy + Math.sin(a) * ry, rot: (a * 180) / Math.PI + 90 });
+    }
+  } else {
+    // Distribute chairs across 4 sides proportionally to side length.
+    // Long sides get more chairs.
+    const sides = [
+      { name: "top",    len: f.w },
+      { name: "right",  len: f.h },
+      { name: "bottom", len: f.w },
+      { name: "left",   len: f.h },
+    ];
+    // distribute n items proportionally
+    const totalLen = sides.reduce((s, x) => s + x.len, 0);
+    const counts = sides.map(s => Math.floor((s.len / totalLen) * n));
+    let assigned = counts.reduce((a, b) => a + b, 0);
+    // give remainder to longest sides first
+    const order = sides.map((_, i) => i).sort((a, b) => sides[b].len - sides[a].len);
+    let oi = 0;
+    while (assigned < n) { counts[order[oi % order.length]]++; assigned++; oi++; }
+
+    const place = (sideIdx: number, t: number) => {
+      // t ∈ (0,1) along the side
+      switch (sideIdx) {
+        case 0: return { cx: f.x + f.w * t, cy: f.y - gap - chairSize / 2, rot: 0 };
+        case 1: return { cx: f.x + f.w + gap + chairSize / 2, cy: f.y + f.h * t, rot: 90 };
+        case 2: return { cx: f.x + f.w * (1 - t), cy: f.y + f.h + gap + chairSize / 2, rot: 180 };
+        case 3: return { cx: f.x - gap - chairSize / 2, cy: f.y + f.h * (1 - t), rot: 270 };
+      }
+      return { cx: 0, cy: 0, rot: 0 };
+    };
+
+    counts.forEach((c, sideIdx) => {
+      for (let i = 0; i < c; i++) {
+        const t = (i + 1) / (c + 1);
+        chairs.push(place(sideIdx, t));
+      }
+    });
+  }
+
+  return (
+    <g>
+      {/* chairs (rendered behind the table label but visible) */}
+      {chairs.map((c, i) => (
+        <g key={i} transform={`rotate(${c.rot} ${c.cx} ${c.cy})`} pointerEvents="none">
+          <rect x={c.cx - chairSize / 2} y={c.cy - chairSize / 2} width={chairSize} height={chairSize} rx={3}
+            fill="#EDEDE8" stroke={f.stroke} strokeWidth={1} />
+          <rect x={c.cx - chairSize / 2 + 2} y={c.cy - chairSize / 2 - 2} width={chairSize - 4} height={3} rx={1.5}
+            fill={f.stroke} opacity={0.7} />
+        </g>
+      ))}
+      {/* Table */}
+      <g onMouseDown={onMouseDown} onContextMenu={onContextMenu} style={{ cursor: "move" }}>
+        {round ? (
+          <ellipse cx={cx} cy={cy} rx={f.w / 2} ry={f.h / 2}
+            fill={f.fill} stroke={f.stroke} strokeWidth={1.5} opacity={f.opacity} />
+        ) : (
+          <rect x={f.x} y={f.y} width={f.w} height={f.h} rx={f.radius}
+            fill={f.fill} stroke={f.stroke} strokeWidth={1.5} opacity={f.opacity} />
+        )}
+        {f.tableNo && (
+          <text x={cx} y={cy + 4} textAnchor="middle" fontSize="14" fontWeight="700"
+            fill="white" pointerEvents="none">{f.tableNo}</text>
+        )}
+        <text x={cx} y={cy + (f.tableNo ? 18 : 4)} textAnchor="middle" fontSize="9"
+          fill="white" opacity={0.85} pointerEvents="none">{n} seats</text>
+      </g>
+    </g>
+  );
+}
+
+/** Booth: rectangular table with bench seating on long sides. */
+function BoothTable({ f, onMouseDown, onContextMenu }: { f: Furniture; onMouseDown: (e: React.MouseEvent) => void; onContextMenu?: (e: React.MouseEvent) => void }) {
+  const cx = f.x + f.w / 2;
+  const cy = f.y + f.h / 2;
+  const benchH = 14;
+  const n = Math.max(0, Math.min(20, f.chairs ?? 0));
+  return (
+    <g>
+      {/* benches top/bottom */}
+      <rect x={f.x} y={f.y - benchH - 2} width={f.w} height={benchH} rx={4}
+        fill="#EDEDE8" stroke={f.stroke} strokeWidth={1} pointerEvents="none" />
+      <rect x={f.x} y={f.y + f.h + 2} width={f.w} height={benchH} rx={4}
+        fill="#EDEDE8" stroke={f.stroke} strokeWidth={1} pointerEvents="none" />
+      <g onMouseDown={onMouseDown} onContextMenu={onContextMenu} style={{ cursor: "move" }}>
+        <rect x={f.x} y={f.y} width={f.w} height={f.h} rx={f.radius}
+          fill={f.fill} stroke={f.stroke} strokeWidth={1.5} opacity={f.opacity} />
+        {f.tableNo && (
+          <text x={cx} y={cy + 4} textAnchor="middle" fontSize="14" fontWeight="700"
+            fill="white" pointerEvents="none">{f.tableNo}</text>
+        )}
+        <text x={cx} y={cy + (f.tableNo ? 18 : 4)} textAnchor="middle" fontSize="9"
+          fill="white" opacity={0.85} pointerEvents="none">{n} seats</text>
+      </g>
+    </g>
+  );
 }

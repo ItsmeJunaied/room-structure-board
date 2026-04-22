@@ -1,7 +1,10 @@
 export type FurnitureType =
   | "bed" | "sofa" | "chair" | "table" | "cupboard"
   | "wardrobe" | "lamp" | "plant" | "mirror" | "pillow" | "rug" | "tv" | "sink" | "toilet" | "bathtub"
-  | "salon-chair" | "massage-bed" | "cash-counter";
+  | "salon-chair" | "massage-bed" | "cash-counter"
+  | "dining-rect" | "dining-round" | "dining-square" | "booth";
+
+export type TableShape = "rect" | "round" | "square";
 
 export interface Furniture {
   id: string;
@@ -16,6 +19,10 @@ export interface Furniture {
   stroke: string;
   opacity: number;
   radius: number;
+  /** Number of chairs to auto-place around dining tables */
+  chairs?: number;
+  /** Optional table number / label (for restaurant) */
+  tableNo?: string;
 }
 
 export type RoomShape = "rect" | "circle" | "l-shape";
@@ -80,9 +87,13 @@ export const DEFAULTS: Record<FurnitureType, Omit<Furniture, "id" | "x" | "y">> 
   "salon-chair":  { type: "salon-chair",  name: "Salon Chair",  w: 60,  h: 70,  rotation: 0, fill: "#2A2A2A", stroke: "#1B1A1A", opacity: 1, radius: 12 },
   "massage-bed":  { type: "massage-bed",  name: "Massage Bed",  w: 180, h: 70,  rotation: 0, fill: "#F5E9DC", stroke: "#1B1A1A", opacity: 1, radius: 14 },
   "cash-counter": { type: "cash-counter", name: "Cash Counter", w: 140, h: 60,  rotation: 0, fill: "#C9A87C", stroke: "#1B1A1A", opacity: 1, radius: 4  },
+  "dining-rect":   { type: "dining-rect",   name: "Rect Table",   w: 120, h: 70,  rotation: 0, fill: "#7C8CF8", stroke: "#1B1A1A", opacity: 1, radius: 8,  chairs: 4 },
+  "dining-round":  { type: "dining-round",  name: "Round Table",  w: 90,  h: 90,  rotation: 0, fill: "#EDEDE8", stroke: "#1B1A1A", opacity: 1, radius: 45, chairs: 4 },
+  "dining-square": { type: "dining-square", name: "Square Table", w: 80,  h: 80,  rotation: 0, fill: "#7C8CF8", stroke: "#1B1A1A", opacity: 1, radius: 6,  chairs: 4 },
+  "booth":         { type: "booth",         name: "Booth",        w: 140, h: 90,  rotation: 0, fill: "#C9A87C", stroke: "#1B1A1A", opacity: 1, radius: 8,  chairs: 4 },
 };
 
-export type BoardKind = "floor" | "salon";
+export type BoardKind = "floor" | "salon" | "restaurant";
 
 export interface Board {
   id: string;

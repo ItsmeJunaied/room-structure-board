@@ -5,7 +5,7 @@ import {
   Trash2, Copy, MousePointer2, Search, ChevronDown,
   Square, DoorOpen, Sofa, Bed, Armchair, Lamp, Flower2, Tv, Bath, Wind, Layers,
   Circle, Minus, Shapes, Lock, Unlock, Group, Ungroup, Scissors, Clipboard, ArrowUp, ArrowDown,
-  Scissors as ScissorsIcon, Coins,
+  Scissors as ScissorsIcon, Coins, UtensilsCrossed, CircleDot,
 } from "lucide-react";
 import { FloorCanvas, type ContextMenuEvent } from "@/components/FloorCanvas";
 import {
@@ -43,9 +43,20 @@ const SALON_PALETTE: { type: FurnitureType; icon: typeof Square; group: string }
   { type: "plant", icon: Flower2, group: "Decor" },
 ];
 
+const RESTAURANT_PALETTE: { type: FurnitureType; icon: typeof Square; group: string }[] = [
+  { type: "dining-rect", icon: UtensilsCrossed, group: "Tables" },
+  { type: "dining-round", icon: CircleDot, group: "Tables" },
+  { type: "dining-square", icon: Square, group: "Tables" },
+  { type: "booth", icon: Sofa, group: "Tables" },
+  { type: "cash-counter", icon: Coins, group: "Service" },
+  { type: "plant", icon: Flower2, group: "Decor" },
+  { type: "lamp", icon: Lamp, group: "Decor" },
+];
+
 const BOARDS: { id: BoardKind; name: string }[] = [
   { id: "floor", name: "My Floor Plan" },
   { id: "salon", name: "Salon Board" },
+  { id: "restaurant", name: "Restaurant Board" },
 ];
 
 interface BoardState {
@@ -64,6 +75,7 @@ function Index() {
   const [boards, setBoards] = useState<Record<BoardKind, BoardState>>({
     floor: emptyBoard(),
     salon: emptyBoard(),
+    restaurant: emptyBoard(),
   });
   const [boardMenuOpen, setBoardMenuOpen] = useState(false);
 
@@ -85,7 +97,7 @@ function Index() {
     });
   };
 
-  const PALETTE = board === "salon" ? SALON_PALETTE : FLOOR_PALETTE;
+  const PALETTE = board === "salon" ? SALON_PALETTE : board === "restaurant" ? RESTAURANT_PALETTE : FLOOR_PALETTE;
 
   // Reset selection when switching boards
   useEffect(() => { setSelection(null); setMultiSelection([]); setCtxMenu(null); }, [board]);
@@ -300,7 +312,7 @@ function Index() {
                       className={`flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-sm hover:bg-secondary ${board === b.id ? "bg-accent/40" : ""}`}
                     >
                       <span className="grid h-5 w-5 place-items-center rounded bg-primary/15 text-primary">
-                        {b.id === "salon" ? <ScissorsIcon className="h-3 w-3" /> : <Home className="h-3 w-3" />}
+                        {b.id === "salon" ? <ScissorsIcon className="h-3 w-3" /> : b.id === "restaurant" ? <UtensilsCrossed className="h-3 w-3" /> : <Home className="h-3 w-3" />}
                       </span>
                       <span className="flex-1">{b.name}</span>
                       {board === b.id && <span className="text-xs text-primary">●</span>}
@@ -341,7 +353,7 @@ function Index() {
               <div className="mb-3 flex items-center justify-between text-sm font-semibold">
                 <span>Build</span>
                 <span className="rounded-full bg-accent/40 px-2 py-0.5 text-[10px] uppercase tracking-wide text-accent-foreground">
-                  {board === "salon" ? "Salon" : "Floor"}
+                  {board === "salon" ? "Salon" : board === "restaurant" ? "Restaurant" : "Floor"}
                 </span>
               </div>
               <div className="grid grid-cols-3 gap-1.5">
@@ -639,10 +651,25 @@ function ActionButtons({ onDuplicate, onDelete }: { onDuplicate?: () => void; on
 }
 
 function FurnitureProps({ f, onChange, onDelete, onDuplicate }: { f: Furniture; onChange: (p: Partial<Furniture>) => void; onDelete: () => void; onDuplicate: () => void }) {
+  const isDining = f.type === "dining-rect" || f.type === "dining-round" || f.type === "dining-square" || f.type === "booth";
   return (
     <>
       <Section title="Furniture">
         <Row label="Name"><input value={f.name} onChange={e => onChange({ name: e.target.value })} className="w-full rounded-md border border-border bg-card px-2 py-1 text-sm" /></Row>
+        {isDining && (
+          <>
+            <Row label="Table #"><input value={f.tableNo ?? ""} placeholder="e.g. 12" onChange={e => onChange({ tableNo: e.target.value })} className="w-full rounded-md border border-border bg-card px-2 py-1 text-sm" /></Row>
+            <Row label="Chairs">
+              <div className="flex w-full items-center gap-2">
+                <button onClick={() => onChange({ chairs: Math.max(0, (f.chairs ?? 0) - 1) })} className="grid h-7 w-7 place-items-center rounded-md border border-border hover:bg-secondary">−</button>
+                <input type="number" min={0} max={20} value={f.chairs ?? 0}
+                  onChange={e => onChange({ chairs: Math.max(0, Math.min(20, parseInt(e.target.value) || 0)) })}
+                  className="w-full rounded-md border border-border bg-card px-2 py-1 text-center text-sm" />
+                <button onClick={() => onChange({ chairs: Math.min(20, (f.chairs ?? 0) + 1) })} className="grid h-7 w-7 place-items-center rounded-md border border-border hover:bg-secondary">+</button>
+              </div>
+            </Row>
+          </>
+        )}
         <Row label="Position"><div className="grid w-full grid-cols-2 gap-1.5"><NumField v={f.x} suffix="x" onChange={n => onChange({ x: n })} /><NumField v={f.y} suffix="y" onChange={n => onChange({ y: n })} /></div></Row>
         <Row label="Size"><div className="grid w-full grid-cols-2 gap-1.5"><NumField v={f.w} suffix="w" onChange={n => onChange({ w: Math.max(20, n) })} /><NumField v={f.h} suffix="h" onChange={n => onChange({ h: Math.max(20, n) })} /></div></Row>
         <Row label="Radius"><NumField v={f.radius} onChange={n => onChange({ radius: Math.max(0, n) })} /></Row>

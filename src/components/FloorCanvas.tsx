@@ -2,16 +2,23 @@ import { useEffect, useRef, useState } from "react";
 import { roomPath } from "@/lib/floorplan-types";
 import type { Furniture, Room, Door, Partition, Selection, Tool, RoomShape } from "@/lib/floorplan-types";
 
+export interface ContextMenuEvent {
+  x: number; y: number;
+  target: Selection;
+}
+
 interface Props {
   rooms: Room[];
   doors: Door[];
   partitions: Partition[];
   furniture: Furniture[];
   selection: Selection;
+  multiSelection?: string[]; // furniture/room ids in additive selection
+  lockedIds?: Set<string>;
   tool: Tool;
   roomFill: string;
   roomShape: RoomShape;
-  onSelect: (s: Selection) => void;
+  onSelect: (s: Selection, additive?: boolean) => void;
   onUpdateFurniture: (id: string, patch: Partial<Furniture>) => void;
   onUpdateRoom: (id: string, patch: Partial<Room>) => void;
   onUpdateDoor: (id: string, patch: Partial<Door>) => void;
@@ -20,6 +27,7 @@ interface Props {
   onAddDoor: (d: Door) => void;
   onAddPartition: (p: Partition) => void;
   onSetTool: (t: Tool) => void;
+  onContextMenu?: (e: ContextMenuEvent) => void;
 }
 
 type Drag =
@@ -34,13 +42,26 @@ type Drag =
   | { kind: "rotateD"; id: string; cx: number; cy: number }
   | { kind: "drawRoom"; x1: number; y1: number; x2: number; y2: number }
   | { kind: "drawPart"; x1: number; y1: number; x2: number; y2: number }
+  | { kind: "pan"; sx: number; sy: number; ovx: number; ovy: number }
   | null;
 
 const uid = () => crypto.randomUUID();
 
+const W = 4000, H = 3000;
+
 export function FloorCanvas(p: Props) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [drag, setDrag] = useState<Drag>(null);
+
+  // viewport: viewBox controls infinite-ish pan/zoom
+  const [view, setView] = useState({ x: 0, y: 0, w: 1200, h: 800 });
+  const [spaceDown, setSpaceDown] = useState(false);
+
+  const locked = p.lockedIds ?? new Set<string>();
+
+  const isMulti = (id: string) =>
+    p.multiSelection?.includes(id) ||
+    (p.selection && "id" in p.selection && p.selection.id === id);
 
   const toSvg = (cx: number, cy: number) => {
     const svg = svgRef.current!;
@@ -52,11 +73,52 @@ export function FloorCanvas(p: Props) {
     return { x: r.x, y: r.y };
   };
 
+  // Space-to-pan
+  useEffect(() => {
+    const dn = (e: KeyboardEvent) => { if (e.code === "Space") setSpaceDown(true); };
+    const up = (e: KeyboardEvent) => { if (e.code === "Space") setSpaceDown(false); };
+    window.addEventListener("keydown", dn);
+    window.addEventListener("keyup", up);
+    return () => { window.removeEventListener("keydown", dn); window.removeEventListener("keyup", up); };
+  }, []);
+
+  // Ctrl+wheel zoom
+  useEffect(() => {
+    const svg = svgRef.current; if (!svg) return;
+    const onWheel = (e: WheelEvent) => {
+      if (!e.ctrlKey && !e.metaKey) return;
+      e.preventDefault();
+      const { x: mx, y: my } = toSvg(e.clientX, e.clientY);
+      const factor = e.deltaY > 0 ? 1.12 : 1 / 1.12;
+      setView(v => {
+        const nw = Math.min(8000, Math.max(200, v.w * factor));
+        const nh = Math.min(6000, Math.max(150, v.h * factor));
+        // keep cursor anchor stable
+        const nx = mx - (mx - v.x) * (nw / v.w);
+        const ny = my - (my - v.y) * (nh / v.h);
+        return { x: nx, y: ny, w: nw, h: nh };
+      });
+    };
+    svg.addEventListener("wheel", onWheel, { passive: false });
+    return () => svg.removeEventListener("wheel", onWheel);
+  }, []);
+
   useEffect(() => {
     if (!drag) return;
     const onMove = (e: MouseEvent) => {
       const { x, y } = toSvg(e.clientX, e.clientY);
       switch (drag.kind) {
+        case "pan": {
+          // pan based on screen delta scaled into viewBox units
+          const svg = svgRef.current!;
+          const rect = svg.getBoundingClientRect();
+          const sxRatio = view.w / rect.width;
+          const syRatio = view.h / rect.height;
+          const dx = (e.clientX - drag.sx) * sxRatio;
+          const dy = (e.clientY - drag.sy) * syRatio;
+          setView(v => ({ ...v, x: drag.ovx - dx, y: drag.ovy - dy }));
+          break;
+        }
         case "moveF": p.onUpdateFurniture(drag.id, { x: x - drag.offX, y: y - drag.offY }); break;
         case "moveR": p.onUpdateRoom(drag.id, { x: x - drag.offX, y: y - drag.offY }); break;
         case "moveD": p.onUpdateDoor(drag.id, { x: x - drag.offX, y: y - drag.offY }); break;
@@ -128,11 +190,18 @@ export function FloorCanvas(p: Props) {
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mouseup", onUp);
     };
-  }, [drag, p]);
+  }, [drag, p, view]);
 
   const onBgDown = (e: React.MouseEvent) => {
     const target = e.target as Element;
-    if (target !== svgRef.current && target.id !== "bg") return;
+    const isBg = target === svgRef.current || target.id === "bg";
+    // Pan: space + drag (anywhere) or middle mouse
+    if ((spaceDown && e.button === 0) || e.button === 1) {
+      e.preventDefault();
+      setDrag({ kind: "pan", sx: e.clientX, sy: e.clientY, ovx: view.x, ovy: view.y });
+      return;
+    }
+    if (!isBg) return;
     const { x, y } = toSvg(e.clientX, e.clientY);
     if (p.tool === "room") {
       setDrag({ kind: "drawRoom", x1: x, y1: y, x2: x, y2: y });
@@ -148,10 +217,24 @@ export function FloorCanvas(p: Props) {
     }
   };
 
-  const cursor = p.tool === "room" || p.tool === "door" || p.tool === "partition" ? "crosshair" : "default";
+  const onBgContext = (e: React.MouseEvent) => {
+    e.preventDefault();
+    p.onContextMenu?.({ x: e.clientX, y: e.clientY, target: null });
+  };
+
+  const cursor = spaceDown
+    ? (drag?.kind === "pan" ? "grabbing" : "grab")
+    : (p.tool === "room" || p.tool === "door" || p.tool === "partition" ? "crosshair" : "default");
 
   return (
-    <svg ref={svgRef} viewBox="0 0 1200 800" className="h-full w-full" style={{ cursor }} onMouseDown={onBgDown}>
+    <svg
+      ref={svgRef}
+      viewBox={`${view.x} ${view.y} ${view.w} ${view.h}`}
+      className="h-full w-full select-none"
+      style={{ cursor }}
+      onMouseDown={onBgDown}
+      onContextMenu={onBgContext}
+    >
       <defs>
         <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
           <path d="M 20 0 L 0 0 0 20" fill="none" stroke="var(--canvas-grid)" strokeWidth="0.5" />
@@ -165,46 +248,54 @@ export function FloorCanvas(p: Props) {
         </pattern>
       </defs>
 
-      <rect id="bg" width="1200" height="800" fill="url(#bigGrid)" />
+      <rect id="bg" x={-W} y={-H} width={W * 3} height={H * 3} fill="url(#bigGrid)" />
 
       {p.rooms.length === 0 && p.furniture.length === 0 && p.tool === "select" && (
         <g pointerEvents="none">
-          <text x="600" y="380" textAnchor="middle" fontSize="20" fill="var(--muted-foreground)" fontStyle="italic">
+          <text x={view.x + view.w / 2} y={view.y + view.h / 2 - 10} textAnchor="middle" fontSize="20" fill="var(--muted-foreground)" fontStyle="italic">
             Empty canvas
           </text>
-          <text x="600" y="410" textAnchor="middle" fontSize="13" fill="var(--muted-foreground)">
-            Pick a shape, draw a room, then add partitions, doors and furniture.
+          <text x={view.x + view.w / 2} y={view.y + view.h / 2 + 18} textAnchor="middle" fontSize="13" fill="var(--muted-foreground)">
+            Ctrl+scroll to zoom · Space+drag to pan · Right-click for menu
           </text>
         </g>
       )}
 
       {/* Rooms */}
       {p.rooms.map(r => {
-        const sel = p.selection?.kind === "room" && p.selection.id === r.id;
+        const sel = isMulti(r.id);
+        const isLocked = locked.has(r.id);
         return (
           <g key={r.id}>
             <path
               d={roomPath(r)}
               fill={r.fill}
-              stroke="var(--wall)"
+              stroke={sel ? "var(--primary)" : "var(--wall)"}
               strokeWidth={sel ? 5 : 4}
               strokeLinejoin="miter"
-              style={{ cursor: "move" }}
+              style={{ cursor: isLocked ? "not-allowed" : "move" }}
               onMouseDown={(e) => {
+                if (spaceDown || e.button === 1) return;
                 e.stopPropagation();
-                p.onSelect({ kind: "room", id: r.id });
+                p.onSelect({ kind: "room", id: r.id }, e.shiftKey);
+                if (isLocked) return;
                 const { x, y } = toSvg(e.clientX, e.clientY);
                 setDrag({ kind: "moveR", id: r.id, offX: x - r.x, offY: y - r.y });
               }}
+              onContextMenu={(e) => {
+                e.preventDefault(); e.stopPropagation();
+                p.onSelect({ kind: "room", id: r.id });
+                p.onContextMenu?.({ x: e.clientX, y: e.clientY, target: { kind: "room", id: r.id } });
+              }}
             />
             <text x={r.x + 12} y={r.y + 22} fontSize="12" fontStyle="italic" fill="var(--muted-foreground)" pointerEvents="none">
-              {r.name} · {Math.round(r.w)}×{Math.round(r.h)} · {r.shape}
+              {r.name} · {Math.round(r.w)}×{Math.round(r.h)} · {r.shape}{isLocked ? " · 🔒" : ""}
             </text>
           </g>
         );
       })}
 
-      {/* Partitions (interior walls) */}
+      {/* Partitions */}
       {p.partitions.map(pt => {
         const sel = p.selection?.kind === "partition" && p.selection.id === pt.id;
         return (
@@ -214,10 +305,16 @@ export function FloorCanvas(p: Props) {
               stroke={pt.color} strokeWidth={pt.thickness} strokeLinecap="round"
               style={{ cursor: "move" }}
               onMouseDown={(e) => {
+                if (spaceDown) return;
                 e.stopPropagation();
                 p.onSelect({ kind: "partition", id: pt.id });
                 const { x, y } = toSvg(e.clientX, e.clientY);
                 setDrag({ kind: "moveP", id: pt.id, offX: x, offY: y, orig: pt });
+              }}
+              onContextMenu={(e) => {
+                e.preventDefault(); e.stopPropagation();
+                p.onSelect({ kind: "partition", id: pt.id });
+                p.onContextMenu?.({ x: e.clientX, y: e.clientY, target: { kind: "partition", id: pt.id } });
               }}
             />
             {sel && (
@@ -255,10 +352,16 @@ export function FloorCanvas(p: Props) {
             <circle cx={d.x} cy={d.y} r={sel ? 7 : 5} fill={sel ? "var(--primary)" : "white"} stroke="var(--primary)" strokeWidth="1.5"
               style={{ cursor: "move" }}
               onMouseDown={(e) => {
+                if (spaceDown) return;
                 e.stopPropagation();
                 p.onSelect({ kind: "door", id: d.id });
                 const { x, y } = toSvg(e.clientX, e.clientY);
                 setDrag({ kind: "moveD", id: d.id, offX: x - d.x, offY: y - d.y });
+              }}
+              onContextMenu={(e) => {
+                e.preventDefault(); e.stopPropagation();
+                p.onSelect({ kind: "door", id: d.id });
+                p.onContextMenu?.({ x: e.clientX, y: e.clientY, target: { kind: "door", id: d.id } });
               }}
             />
             {sel && (
@@ -291,30 +394,38 @@ export function FloorCanvas(p: Props) {
 
       {/* Furniture */}
       {p.furniture.map(f => {
-        const isSel = p.selection?.kind === "furniture" && p.selection.id === f.id;
+        const sel = isMulti(f.id);
+        const isLocked = locked.has(f.id);
         const cx = f.x + f.w / 2;
         const cy = f.y + f.h / 2;
         return (
           <g key={f.id} transform={`rotate(${f.rotation} ${cx} ${cy})`}>
             <FurnitureShape f={f}
               onMouseDown={(e) => {
+                if (spaceDown) return;
                 e.stopPropagation();
-                p.onSelect({ kind: "furniture", id: f.id });
+                p.onSelect({ kind: "furniture", id: f.id }, e.shiftKey);
+                if (isLocked) return;
                 const { x, y } = toSvg(e.clientX, e.clientY);
                 setDrag({ kind: "moveF", id: f.id, offX: x - f.x, offY: y - f.y });
               }}
+              onContextMenu={(e) => {
+                e.preventDefault(); e.stopPropagation();
+                p.onSelect({ kind: "furniture", id: f.id });
+                p.onContextMenu?.({ x: e.clientX, y: e.clientY, target: { kind: "furniture", id: f.id } });
+              }}
             />
-            {isSel && (
+            {sel && (
               <text x={cx} y={cy + 4} textAnchor="middle" fontSize="10" fill="oklch(0.3 0.05 152)" fontStyle="italic" pointerEvents="none">
-                {f.name}
+                {f.name}{isLocked ? " 🔒" : ""}
               </text>
             )}
           </g>
         );
       })}
 
-      {/* Furniture chrome */}
-      {p.selection?.kind === "furniture" && (() => {
+      {/* Furniture chrome (single primary selection) */}
+      {p.selection?.kind === "furniture" && !locked.has(p.selection.id) && (() => {
         const sel = p.furniture.find(f => f.id === p.selection!.id);
         if (!sel) return null;
         const cx = sel.x + sel.w / 2, cy = sel.y + sel.h / 2;
@@ -346,7 +457,7 @@ export function FloorCanvas(p: Props) {
       })()}
 
       {/* Room chrome */}
-      {p.selection?.kind === "room" && (() => {
+      {p.selection?.kind === "room" && !locked.has(p.selection.id) && (() => {
         const r = p.rooms.find(x => x.id === p.selection!.id);
         if (!r) return null;
         const cx = r.x + r.w / 2, cy = r.y + r.h / 2;
@@ -376,12 +487,12 @@ export function FloorCanvas(p: Props) {
   );
 }
 
-function FurnitureShape({ f, onMouseDown }: { f: Furniture; onMouseDown: (e: React.MouseEvent) => void }) {
-  const common = { onMouseDown, style: { cursor: "move" as const }, fill: f.fill, stroke: f.stroke, strokeWidth: 1.5, opacity: f.opacity };
+function FurnitureShape({ f, onMouseDown, onContextMenu }: { f: Furniture; onMouseDown: (e: React.MouseEvent) => void; onContextMenu?: (e: React.MouseEvent) => void }) {
+  const common = { onMouseDown, onContextMenu, style: { cursor: "move" as const }, fill: f.fill, stroke: f.stroke, strokeWidth: 1.5, opacity: f.opacity };
   switch (f.type) {
     case "bed":
       return (
-        <g onMouseDown={onMouseDown} style={{ cursor: "move" }}>
+        <g onMouseDown={onMouseDown} onContextMenu={onContextMenu} style={{ cursor: "move" }}>
           <rect x={f.x} y={f.y} width={f.w} height={f.h} rx={f.radius} fill={f.fill} opacity={f.opacity} stroke={f.stroke} strokeWidth={1.5} />
           <rect x={f.x} y={f.y} width={f.w} height={f.h} rx={f.radius} fill="url(#bedTexture)" opacity={0.4} pointerEvents="none" />
           <rect x={f.x + 8} y={f.y + 6} width={f.w * 0.32} height={22} rx={4} fill="white" opacity={0.7} stroke={f.stroke} strokeWidth={0.8} pointerEvents="none" />
@@ -390,11 +501,48 @@ function FurnitureShape({ f, onMouseDown }: { f: Furniture; onMouseDown: (e: Rea
       );
     case "sofa":
       return (
-        <g onMouseDown={onMouseDown} style={{ cursor: "move" }}>
+        <g onMouseDown={onMouseDown} onContextMenu={onContextMenu} style={{ cursor: "move" }}>
           <rect x={f.x} y={f.y} width={f.w} height={f.h} rx={f.radius} {...common} />
           {[0, 1, 2].map(i => (
             <rect key={i} x={f.x + 6 + i * ((f.w - 18) / 3 + 3)} y={f.y + 6} width={(f.w - 18) / 3} height={f.h - 12} rx={3} fill="none" stroke={f.stroke} strokeWidth={0.8} pointerEvents="none" />
           ))}
+        </g>
+      );
+    case "salon-chair":
+      return (
+        <g onMouseDown={onMouseDown} onContextMenu={onContextMenu} style={{ cursor: "move" }}>
+          {/* base */}
+          <rect x={f.x} y={f.y + f.h * 0.25} width={f.w} height={f.h * 0.55} rx={f.radius} fill={f.fill} stroke={f.stroke} strokeWidth={1.5} opacity={f.opacity} />
+          {/* headrest */}
+          <rect x={f.x + f.w * 0.2} y={f.y} width={f.w * 0.6} height={f.h * 0.28} rx={6} fill={f.fill} stroke={f.stroke} strokeWidth={1.2} pointerEvents="none" />
+          {/* armrests */}
+          <rect x={f.x - 4} y={f.y + f.h * 0.35} width="6" height={f.h * 0.4} rx={2} fill={f.stroke} opacity={0.7} pointerEvents="none" />
+          <rect x={f.x + f.w - 2} y={f.y + f.h * 0.35} width="6" height={f.h * 0.4} rx={2} fill={f.stroke} opacity={0.7} pointerEvents="none" />
+          {/* footrest */}
+          <rect x={f.x + f.w * 0.25} y={f.y + f.h * 0.82} width={f.w * 0.5} height={f.h * 0.18} rx={4} fill={f.fill} stroke={f.stroke} strokeWidth={1} opacity={0.85} pointerEvents="none" />
+        </g>
+      );
+    case "massage-bed":
+      return (
+        <g onMouseDown={onMouseDown} onContextMenu={onContextMenu} style={{ cursor: "move" }}>
+          <rect x={f.x} y={f.y} width={f.w} height={f.h} rx={f.radius} {...common} />
+          {/* face cradle */}
+          <circle cx={f.x + 22} cy={f.y + f.h / 2} r={Math.min(14, f.h / 3)} fill="white" opacity={0.6} stroke={f.stroke} strokeWidth={1} pointerEvents="none" />
+          {/* divider */}
+          <line x1={f.x + f.w * 0.45} y1={f.y + 6} x2={f.x + f.w * 0.45} y2={f.y + f.h - 6} stroke={f.stroke} strokeWidth={0.8} opacity={0.5} pointerEvents="none" />
+          {/* towel */}
+          <rect x={f.x + f.w * 0.55} y={f.y + 6} width={f.w * 0.4} height={f.h - 12} rx={4} fill="white" opacity={0.5} pointerEvents="none" />
+        </g>
+      );
+    case "cash-counter":
+      return (
+        <g onMouseDown={onMouseDown} onContextMenu={onContextMenu} style={{ cursor: "move" }}>
+          <rect x={f.x} y={f.y} width={f.w} height={f.h} rx={f.radius} {...common} />
+          {/* counter top */}
+          <rect x={f.x + 4} y={f.y + 4} width={f.w - 8} height={f.h * 0.35} rx={2} fill="white" opacity={0.5} stroke={f.stroke} strokeWidth={0.8} pointerEvents="none" />
+          {/* register */}
+          <rect x={f.x + f.w * 0.65} y={f.y + 8} width={f.w * 0.25} height={f.h * 0.35} rx={2} fill={f.stroke} opacity={0.85} pointerEvents="none" />
+          <text x={f.x + f.w / 2} y={f.y + f.h * 0.78} textAnchor="middle" fontSize="9" fill={f.stroke} fontWeight="600" pointerEvents="none">CASH</text>
         </g>
       );
     case "table":
@@ -402,7 +550,7 @@ function FurnitureShape({ f, onMouseDown }: { f: Furniture; onMouseDown: (e: Rea
     case "plant":
     case "toilet":
       return (
-        <g onMouseDown={onMouseDown} style={{ cursor: "move" }}>
+        <g onMouseDown={onMouseDown} onContextMenu={onContextMenu} style={{ cursor: "move" }}>
           <ellipse cx={f.x + f.w / 2} cy={f.y + f.h / 2} rx={f.w / 2} ry={f.h / 2} {...common} />
           {f.type === "plant" && <circle cx={f.x + f.w / 2} cy={f.y + f.h / 2} r={Math.min(f.w, f.h) / 4} fill={f.stroke} opacity={0.4} pointerEvents="none" />}
           {f.type === "lamp" && <circle cx={f.x + f.w / 2} cy={f.y + f.h / 2} r={Math.min(f.w, f.h) / 4} fill="white" opacity={0.6} pointerEvents="none" />}
@@ -411,7 +559,7 @@ function FurnitureShape({ f, onMouseDown }: { f: Furniture; onMouseDown: (e: Rea
       );
     case "bathtub":
       return (
-        <g onMouseDown={onMouseDown} style={{ cursor: "move" }}>
+        <g onMouseDown={onMouseDown} onContextMenu={onContextMenu} style={{ cursor: "move" }}>
           <rect x={f.x} y={f.y} width={f.w} height={f.h} rx={f.radius} {...common} />
           <rect x={f.x + 6} y={f.y + 6} width={f.w - 12} height={f.h - 12} rx={f.radius - 4} fill="white" opacity={0.6} stroke={f.stroke} strokeWidth={0.8} pointerEvents="none" />
         </g>

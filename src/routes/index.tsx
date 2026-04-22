@@ -5,7 +5,7 @@ import {
   Trash2, Copy, MousePointer2, Search, ChevronDown,
   Square, DoorOpen, Sofa, Bed, Armchair, Lamp, Flower2, Tv, Bath, Wind, Layers,
   Circle, Minus, Shapes, Lock, Unlock, Group, Ungroup, Scissors, Clipboard, ArrowUp, ArrowDown,
-  Scissors as ScissorsIcon, Coins,
+  Scissors as ScissorsIcon, Coins, UtensilsCrossed, CircleDot,
 } from "lucide-react";
 import { FloorCanvas, type ContextMenuEvent } from "@/components/FloorCanvas";
 import {
@@ -43,9 +43,20 @@ const SALON_PALETTE: { type: FurnitureType; icon: typeof Square; group: string }
   { type: "plant", icon: Flower2, group: "Decor" },
 ];
 
+const RESTAURANT_PALETTE: { type: FurnitureType; icon: typeof Square; group: string }[] = [
+  { type: "dining-rect", icon: UtensilsCrossed, group: "Tables" },
+  { type: "dining-round", icon: CircleDot, group: "Tables" },
+  { type: "dining-square", icon: Square, group: "Tables" },
+  { type: "booth", icon: Sofa, group: "Tables" },
+  { type: "cash-counter", icon: Coins, group: "Service" },
+  { type: "plant", icon: Flower2, group: "Decor" },
+  { type: "lamp", icon: Lamp, group: "Decor" },
+];
+
 const BOARDS: { id: BoardKind; name: string }[] = [
   { id: "floor", name: "My Floor Plan" },
   { id: "salon", name: "Salon Board" },
+  { id: "restaurant", name: "Restaurant Board" },
 ];
 
 interface BoardState {
@@ -64,6 +75,7 @@ function Index() {
   const [boards, setBoards] = useState<Record<BoardKind, BoardState>>({
     floor: emptyBoard(),
     salon: emptyBoard(),
+    restaurant: emptyBoard(),
   });
   const [boardMenuOpen, setBoardMenuOpen] = useState(false);
 

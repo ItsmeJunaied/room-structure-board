@@ -1,6 +1,7 @@
 export type FurnitureType =
   | "bed" | "sofa" | "chair" | "table" | "cupboard"
-  | "wardrobe" | "lamp" | "plant" | "mirror" | "pillow" | "rug" | "tv" | "sink" | "toilet" | "bathtub";
+  | "wardrobe" | "lamp" | "plant" | "mirror" | "pillow" | "rug" | "tv" | "sink" | "toilet" | "bathtub"
+  | "salon-chair" | "massage-bed" | "cash-counter";
 
 export interface Furniture {
   id: string;
@@ -76,7 +77,18 @@ export const DEFAULTS: Record<FurnitureType, Omit<Furniture, "id" | "x" | "y">> 
   sink:     { type: "sink",     name: "Sink",      w: 60,  h: 40,  rotation: 0, fill: "#E6EEF3", stroke: "#1B1A1A", opacity: 1,    radius: 6 },
   toilet:   { type: "toilet",   name: "Toilet",    w: 38,  h: 56,  rotation: 0, fill: "#FFFFFF", stroke: "#1B1A1A", opacity: 1,    radius: 14 },
   bathtub:  { type: "bathtub",  name: "Bathtub",   w: 130, h: 70,  rotation: 0, fill: "#E6EEF3", stroke: "#1B1A1A", opacity: 1,    radius: 18 },
+  "salon-chair":  { type: "salon-chair",  name: "Salon Chair",  w: 60,  h: 70,  rotation: 0, fill: "#2A2A2A", stroke: "#1B1A1A", opacity: 1, radius: 12 },
+  "massage-bed":  { type: "massage-bed",  name: "Massage Bed",  w: 180, h: 70,  rotation: 0, fill: "#F5E9DC", stroke: "#1B1A1A", opacity: 1, radius: 14 },
+  "cash-counter": { type: "cash-counter", name: "Cash Counter", w: 140, h: 60,  rotation: 0, fill: "#C9A87C", stroke: "#1B1A1A", opacity: 1, radius: 4  },
 };
+
+export type BoardKind = "floor" | "salon";
+
+export interface Board {
+  id: string;
+  name: string;
+  kind: BoardKind;
+}
 
 export const ROOM_PRESETS = [
   { name: "Living Room", fill: "#F1EDE4" },

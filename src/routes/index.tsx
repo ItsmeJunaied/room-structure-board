@@ -1,22 +1,23 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Home, Sparkles, Monitor, Tablet, Smartphone, Eye, Moon, Sun, Download,
-  Plus, Trash2, Copy, MousePointer2, Search, Settings, ChevronDown,
+  Trash2, Copy, MousePointer2, Search, ChevronDown,
   Square, DoorOpen, Sofa, Bed, Armchair, Lamp, Flower2, Tv, Bath, Wind, Layers,
-  Circle, Minus, Shapes,
+  Circle, Minus, Shapes, Lock, Unlock, Group, Ungroup, Scissors, Clipboard, ArrowUp, ArrowDown,
+  Scissors as ScissorsIcon, Coins,
 } from "lucide-react";
-import { FloorCanvas } from "@/components/FloorCanvas";
+import { FloorCanvas, type ContextMenuEvent } from "@/components/FloorCanvas";
 import {
   DEFAULTS, ROOM_PRESETS, ROOM_SHAPES,
-  type Furniture, type FurnitureType, type Room, type Door, type Partition, type Selection, type Tool, type RoomShape,
+  type Furniture, type FurnitureType, type Room, type Door, type Partition, type Selection, type Tool, type RoomShape, type BoardKind,
 } from "@/lib/floorplan-types";
 
 export const Route = createFileRoute("/")({ component: Index });
 
 const uid = () => crypto.randomUUID();
 
-const PALETTE: { type: FurnitureType; icon: typeof Square; group: string }[] = [
+const FLOOR_PALETTE: { type: FurnitureType; icon: typeof Square; group: string }[] = [
   { type: "bed", icon: Bed, group: "Bedroom" },
   { type: "wardrobe", icon: Square, group: "Bedroom" },
   { type: "pillow", icon: Square, group: "Bedroom" },
@@ -34,16 +35,60 @@ const PALETTE: { type: FurnitureType; icon: typeof Square; group: string }[] = [
   { type: "plant", icon: Flower2, group: "Decor" },
 ];
 
+const SALON_PALETTE: { type: FurnitureType; icon: typeof Square; group: string }[] = [
+  { type: "salon-chair", icon: ScissorsIcon, group: "Salon" },
+  { type: "massage-bed", icon: Bed, group: "Salon" },
+  { type: "cash-counter", icon: Coins, group: "Salon" },
+  { type: "mirror", icon: Square, group: "Salon" },
+  { type: "plant", icon: Flower2, group: "Decor" },
+];
+
+const BOARDS: { id: BoardKind; name: string }[] = [
+  { id: "floor", name: "My Floor Plan" },
+  { id: "salon", name: "Salon Board" },
+];
+
+interface BoardState {
+  rooms: Room[];
+  doors: Door[];
+  partitions: Partition[];
+  furniture: Furniture[];
+  groups: Record<string, string[]>; // groupId -> member ids
+  locked: string[];
+}
+
+const emptyBoard = (): BoardState => ({ rooms: [], doors: [], partitions: [], furniture: [], groups: {}, locked: [] });
+
 function Index() {
-  const [rooms, setRooms] = useState<Room[]>([]);
-  const [doors, setDoors] = useState<Door[]>([]);
-  const [partitions, setPartitions] = useState<Partition[]>([]);
-  const [furniture, setFurniture] = useState<Furniture[]>([]);
+  const [board, setBoard] = useState<BoardKind>("floor");
+  const [boards, setBoards] = useState<Record<BoardKind, BoardState>>({
+    floor: emptyBoard(),
+    salon: emptyBoard(),
+  });
+  const [boardMenuOpen, setBoardMenuOpen] = useState(false);
+
   const [selection, setSelection] = useState<Selection>(null);
+  const [multiSelection, setMultiSelection] = useState<string[]>([]); // ids
   const [tool, setTool] = useState<Tool>("select");
   const [roomPresetIdx, setRoomPresetIdx] = useState(0);
   const [roomShape, setRoomShape] = useState<RoomShape>("rect");
   const [dark, setDark] = useState(false);
+  const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number } | null>(null);
+
+  const state = boards[board];
+  const lockedSet = new Set(state.locked);
+
+  const setState = (patch: Partial<BoardState> | ((s: BoardState) => BoardState)) => {
+    setBoards(prev => {
+      const next = typeof patch === "function" ? patch(prev[board]) : { ...prev[board], ...patch };
+      return { ...prev, [board]: next };
+    });
+  };
+
+  const PALETTE = board === "salon" ? SALON_PALETTE : FLOOR_PALETTE;
+
+  // Reset selection when switching boards
+  useEffect(() => { setSelection(null); setMultiSelection([]); setCtxMenu(null); }, [board]);
 
   useEffect(() => { document.documentElement.classList.toggle("dark", dark); }, [dark]);
 
@@ -52,82 +97,179 @@ function Index() {
       const t = (e.target as HTMLElement)?.tagName;
       if (t === "INPUT" || t === "TEXTAREA") return;
       if ((e.key === "Delete" || e.key === "Backspace") && selection) deleteSelection();
-      if (e.key === "Escape") { setTool("select"); setSelection(null); }
+      if (e.key === "Escape") { setTool("select"); setSelection(null); setMultiSelection([]); setCtxMenu(null); }
       if (e.key.toLowerCase() === "r") setTool("room");
       if (e.key.toLowerCase() === "d") setTool("door");
-      if (e.key.toLowerCase() === "p") setTool("partition");
+      if (e.key.toLowerCase() === "p" && !e.ctrlKey && !e.metaKey) setTool("partition");
       if (e.key.toLowerCase() === "v") setTool("select");
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "g") {
+        e.preventDefault();
+        if (e.shiftKey) ungroupSelection(); else groupSelection();
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [selection]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selection, multiSelection, board]);
 
-  const updateF = (id: string, patch: Partial<Furniture>) =>
-    setFurniture(arr => arr.map(f => f.id === id ? { ...f, ...patch } : f));
+  // Close context menu on outside click
+  useEffect(() => {
+    if (!ctxMenu) return;
+    const close = () => setCtxMenu(null);
+    window.addEventListener("mousedown", close);
+    return () => window.removeEventListener("mousedown", close);
+  }, [ctxMenu]);
+
+  const updateF = (id: string, patch: Partial<Furniture>) => {
+    setState(s => {
+      // If part of a group and moving (x/y delta), translate the group together
+      const groupId = Object.keys(s.groups).find(gid => s.groups[gid].includes(id));
+      if (groupId && (patch.x !== undefined || patch.y !== undefined)) {
+        const cur = s.furniture.find(f => f.id === id);
+        if (cur) {
+          const dx = patch.x !== undefined ? patch.x - cur.x : 0;
+          const dy = patch.y !== undefined ? patch.y - cur.y : 0;
+          const ids = s.groups[groupId];
+          return { ...s, furniture: s.furniture.map(f => ids.includes(f.id) ? { ...f, x: f.x + dx, y: f.y + dy } : f) };
+        }
+      }
+      return { ...s, furniture: s.furniture.map(f => f.id === id ? { ...f, ...patch } : f) };
+    });
+  };
   const updateR = (id: string, patch: Partial<Room>) =>
-    setRooms(arr => arr.map(r => r.id === id ? { ...r, ...patch } : r));
+    setState(s => ({ ...s, rooms: s.rooms.map(r => r.id === id ? { ...r, ...patch } : r) }));
   const updateD = (id: string, patch: Partial<Door>) =>
-    setDoors(arr => arr.map(d => d.id === id ? { ...d, ...patch } : d));
+    setState(s => ({ ...s, doors: s.doors.map(d => d.id === id ? { ...d, ...patch } : d) }));
   const updateP = (id: string, patch: Partial<Partition>) =>
-    setPartitions(arr => arr.map(x => x.id === id ? { ...x, ...patch } : x));
+    setState(s => ({ ...s, partitions: s.partitions.map(x => x.id === id ? { ...x, ...patch } : x) }));
 
   const addFurniture = (type: FurnitureType) => {
-    // Drop into center of first room if any, else center of canvas
-    const target = rooms[0];
+    const target = state.rooms[0];
     const def = DEFAULTS[type];
     const cx = target ? target.x + target.w / 2 : 600;
     const cy = target ? target.y + target.h / 2 : 400;
     const item: Furniture = { ...def, id: uid(), x: cx - def.w / 2, y: cy - def.h / 2 };
-    setFurniture(arr => [...arr, item]);
+    setState(s => ({ ...s, furniture: [...s.furniture, item] }));
     setSelection({ kind: "furniture", id: item.id });
     setTool("select");
   };
 
+  const handleSelect = (s: Selection, additive?: boolean) => {
+    if (additive && s && "id" in s) {
+      setMultiSelection(prev => prev.includes(s.id) ? prev.filter(i => i !== s.id) : [...prev, s.id]);
+      setSelection(s);
+    } else {
+      setSelection(s);
+      setMultiSelection(s && "id" in s ? [s.id] : []);
+    }
+  };
+
   const deleteSelection = () => {
-    if (!selection) return;
-    if (selection.kind === "furniture") setFurniture(a => a.filter(x => x.id !== selection.id));
-    if (selection.kind === "room") setRooms(a => a.filter(x => x.id !== selection.id));
-    if (selection.kind === "door") setDoors(a => a.filter(x => x.id !== selection.id));
-    if (selection.kind === "partition") setPartitions(a => a.filter(x => x.id !== selection.id));
-    setSelection(null);
+    const ids = multiSelection.length > 0 ? multiSelection : (selection && "id" in selection ? [selection.id] : []);
+    if (ids.length === 0) return;
+    setState(s => ({
+      ...s,
+      furniture: s.furniture.filter(x => !ids.includes(x.id)),
+      rooms: s.rooms.filter(x => !ids.includes(x.id)),
+      doors: s.doors.filter(x => !ids.includes(x.id)),
+      partitions: s.partitions.filter(x => !ids.includes(x.id)),
+      locked: s.locked.filter(x => !ids.includes(x)),
+      groups: Object.fromEntries(Object.entries(s.groups).map(([gid, members]) => [gid, members.filter(m => !ids.includes(m))]).filter(([, m]) => (m as string[]).length > 1)),
+    }));
+    setSelection(null); setMultiSelection([]); setCtxMenu(null);
   };
 
   const duplicateSelection = () => {
     if (!selection) return;
     if (selection.kind === "furniture") {
-      const f = furniture.find(x => x.id === selection.id); if (!f) return;
+      const f = state.furniture.find(x => x.id === selection.id); if (!f) return;
       const dup = { ...f, id: uid(), x: f.x + 24, y: f.y + 24 };
-      setFurniture(a => [...a, dup]); setSelection({ kind: "furniture", id: dup.id });
+      setState(s => ({ ...s, furniture: [...s.furniture, dup] }));
+      setSelection({ kind: "furniture", id: dup.id });
     } else if (selection.kind === "room") {
-      const r = rooms.find(x => x.id === selection.id); if (!r) return;
+      const r = state.rooms.find(x => x.id === selection.id); if (!r) return;
       const dup = { ...r, id: uid(), x: r.x + 24, y: r.y + 24 };
-      setRooms(a => [...a, dup]); setSelection({ kind: "room", id: dup.id });
+      setState(s => ({ ...s, rooms: [...s.rooms, dup] }));
+      setSelection({ kind: "room", id: dup.id });
     } else if (selection.kind === "partition") {
-      const pt = partitions.find(x => x.id === selection.id); if (!pt) return;
+      const pt = state.partitions.find(x => x.id === selection.id); if (!pt) return;
       const dup = { ...pt, id: uid(), x1: pt.x1 + 20, y1: pt.y1 + 20, x2: pt.x2 + 20, y2: pt.y2 + 20 };
-      setPartitions(a => [...a, dup]); setSelection({ kind: "partition", id: dup.id });
+      setState(s => ({ ...s, partitions: [...s.partitions, dup] }));
+      setSelection({ kind: "partition", id: dup.id });
     }
+    setCtxMenu(null);
+  };
+
+  const toggleLockSelection = () => {
+    const ids = multiSelection.length > 0 ? multiSelection : (selection && "id" in selection ? [selection.id] : []);
+    if (ids.length === 0) return;
+    setState(s => {
+      const allLocked = ids.every(i => s.locked.includes(i));
+      return { ...s, locked: allLocked ? s.locked.filter(i => !ids.includes(i)) : Array.from(new Set([...s.locked, ...ids])) };
+    });
+    setCtxMenu(null);
+  };
+
+  const groupSelection = () => {
+    if (multiSelection.length < 2) return;
+    const gid = uid();
+    setState(s => ({ ...s, groups: { ...s.groups, [gid]: [...multiSelection] } }));
+    setCtxMenu(null);
+  };
+
+  const ungroupSelection = () => {
+    const ids = multiSelection.length > 0 ? multiSelection : (selection && "id" in selection ? [selection.id] : []);
+    setState(s => {
+      const next = { ...s.groups };
+      for (const gid of Object.keys(next)) {
+        if (next[gid].some(m => ids.includes(m))) delete next[gid];
+      }
+      return { ...s, groups: next };
+    });
+    setCtxMenu(null);
+  };
+
+  const reorder = (dir: "front" | "back") => {
+    if (!selection || selection.kind !== "furniture") return;
+    setState(s => {
+      const idx = s.furniture.findIndex(f => f.id === selection.id);
+      if (idx < 0) return s;
+      const arr = [...s.furniture];
+      const [item] = arr.splice(idx, 1);
+      if (dir === "front") arr.push(item); else arr.unshift(item);
+      return { ...s, furniture: arr };
+    });
+    setCtxMenu(null);
   };
 
   const exportJSON = () => {
-    const data = JSON.stringify({ rooms, doors, partitions, furniture }, null, 2);
+    const data = JSON.stringify({ board, ...state }, null, 2);
     const blob = new Blob([data], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
-    a.href = url; a.download = "floorplan.json"; a.click();
+    a.href = url; a.download = `${board}-plan.json`; a.click();
     URL.revokeObjectURL(url);
   };
 
   const clearAll = () => {
-    if (!confirm("Clear the entire canvas?")) return;
-    setRooms([]); setDoors([]); setPartitions([]); setFurniture([]); setSelection(null);
+    if (!confirm("Clear this board?")) return;
+    setState(emptyBoard());
+    setSelection(null); setMultiSelection([]);
+  };
+
+  const onContextMenu = (e: ContextMenuEvent) => {
+    setCtxMenu({ x: e.x, y: e.y });
   };
 
   const groups = Array.from(new Set(PALETTE.map(p => p.group)));
-  const selFurn = selection?.kind === "furniture" ? furniture.find(f => f.id === selection.id) : null;
-  const selRoom = selection?.kind === "room" ? rooms.find(r => r.id === selection.id) : null;
-  const selDoor = selection?.kind === "door" ? doors.find(d => d.id === selection.id) : null;
-  const selPart = selection?.kind === "partition" ? partitions.find(p => p.id === selection.id) : null;
+  const selFurn = selection?.kind === "furniture" ? state.furniture.find(f => f.id === selection.id) : null;
+  const selRoom = selection?.kind === "room" ? state.rooms.find(r => r.id === selection.id) : null;
+  const selDoor = selection?.kind === "door" ? state.doors.find(d => d.id === selection.id) : null;
+  const selPart = selection?.kind === "partition" ? state.partitions.find(p => p.id === selection.id) : null;
+
+  const totalCount = state.rooms.length + state.furniture.length + state.doors.length + state.partitions.length;
+  const isSelLocked = selection && "id" in selection ? lockedSet.has(selection.id) : false;
+  const currentBoardName = BOARDS.find(b => b.id === board)!.name;
 
   return (
     <div className="min-h-screen bg-background p-3">
@@ -138,12 +280,34 @@ function Index() {
             <div className="flex items-center gap-1.5 text-sm font-semibold">
               <Home className="h-4 w-4" /> Archy.
             </div>
-            <div className="flex items-center gap-1.5 rounded-lg bg-secondary px-2.5 py-1.5 text-sm">
-              <span className="grid h-5 w-5 place-items-center rounded bg-primary text-primary-foreground">
-                <Sparkles className="h-3 w-3" />
-              </span>
-              <span className="font-medium">My Floor Plan</span>
-              <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+            <div className="relative">
+              <button
+                onClick={() => setBoardMenuOpen(o => !o)}
+                className="flex items-center gap-1.5 rounded-lg bg-secondary px-2.5 py-1.5 text-sm hover:bg-accent/40"
+              >
+                <span className="grid h-5 w-5 place-items-center rounded bg-primary text-primary-foreground">
+                  <Sparkles className="h-3 w-3" />
+                </span>
+                <span className="font-medium">{currentBoardName}</span>
+                <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+              </button>
+              {boardMenuOpen && (
+                <div className="absolute left-0 top-full z-30 mt-1 min-w-[200px] rounded-lg border border-border bg-card p-1 shadow-lg">
+                  {BOARDS.map(b => (
+                    <button
+                      key={b.id}
+                      onClick={() => { setBoard(b.id); setBoardMenuOpen(false); }}
+                      className={`flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-sm hover:bg-secondary ${board === b.id ? "bg-accent/40" : ""}`}
+                    >
+                      <span className="grid h-5 w-5 place-items-center rounded bg-primary/15 text-primary">
+                        {b.id === "salon" ? <ScissorsIcon className="h-3 w-3" /> : <Home className="h-3 w-3" />}
+                      </span>
+                      <span className="flex-1">{b.name}</span>
+                      {board === b.id && <span className="text-xs text-primary">●</span>}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 
@@ -153,7 +317,8 @@ function Index() {
             ))}
             <div className="mx-1 h-5 w-px bg-border" />
             <span className="px-2 font-mono text-xs text-muted-foreground">
-              {rooms.length} room{rooms.length === 1 ? "" : "s"} · {furniture.length} item{furniture.length === 1 ? "" : "s"}
+              {state.rooms.length} room{state.rooms.length === 1 ? "" : "s"} · {state.furniture.length} item{state.furniture.length === 1 ? "" : "s"}
+              {multiSelection.length > 1 && ` · ${multiSelection.length} selected`}
             </span>
           </div>
 
@@ -173,7 +338,12 @@ function Index() {
           {/* Left panel */}
           <aside className="flex w-72 flex-col border-r border-border">
             <div className="border-b border-border p-4">
-              <div className="mb-3 text-sm font-semibold">Build</div>
+              <div className="mb-3 flex items-center justify-between text-sm font-semibold">
+                <span>Build</span>
+                <span className="rounded-full bg-accent/40 px-2 py-0.5 text-[10px] uppercase tracking-wide text-accent-foreground">
+                  {board === "salon" ? "Salon" : "Floor"}
+                </span>
+              </div>
               <div className="grid grid-cols-3 gap-1.5">
                 <button onClick={() => setTool("room")}
                   className={`flex items-center justify-center gap-1 rounded-lg border px-2 py-2 text-xs font-medium transition ${tool==="room" ? "border-primary bg-primary text-primary-foreground" : "border-border hover:bg-secondary"}`}>
@@ -218,21 +388,12 @@ function Index() {
                 </div>
               </div>
 
-              {tool === "room" && (
-                <div className="mt-3 rounded-md bg-accent/40 px-3 py-2 text-[11px] text-accent-foreground">
-                  Drag on the canvas to draw a {roomShape} {ROOM_PRESETS[roomPresetIdx].name.toLowerCase()}.
-                </div>
-              )}
-              {tool === "partition" && (
-                <div className="mt-3 rounded-md bg-accent/40 px-3 py-2 text-[11px] text-accent-foreground">
-                  Drag inside a room to draw a partition wall.
-                </div>
-              )}
-              {tool === "door" && (
-                <div className="mt-3 rounded-md bg-accent/40 px-3 py-2 text-[11px] text-accent-foreground">
-                  Click a wall position to drop a door, then rotate it.
-                </div>
-              )}
+              <div className="mt-3 rounded-md bg-accent/30 px-3 py-2 text-[11px] text-accent-foreground">
+                <div><b>Ctrl + Scroll</b> — zoom</div>
+                <div><b>Space + Drag</b> — pan canvas</div>
+                <div><b>Right-click</b> — context menu</div>
+                <div><b>Shift + Click</b> — multi-select</div>
+              </div>
             </div>
 
             <div className="flex-1 overflow-y-auto p-3">
@@ -249,7 +410,7 @@ function Index() {
                           <div className="grid h-8 w-8 place-items-center rounded-md" style={{ background: def.fill, opacity: def.opacity }}>
                             <el.icon className="h-3.5 w-3.5" style={{ color: def.stroke }} />
                           </div>
-                          <span>{def.name}</span>
+                          <span className="text-center leading-tight">{def.name}</span>
                         </button>
                       );
                     })}
@@ -257,27 +418,29 @@ function Index() {
                 </div>
               ))}
 
-              {(rooms.length + furniture.length + doors.length + partitions.length) > 0 && (
+              {totalCount > 0 && (
                 <>
                   <div className="mt-4 mb-2 flex items-center gap-1.5 px-1 text-xs font-semibold">
                     <Layers className="h-3.5 w-3.5" /> Layers
                   </div>
                   <ul className="space-y-0.5">
-                    {rooms.map(r => (
+                    {state.rooms.map(r => (
                       <LayerRow key={r.id} active={selection?.kind==="room" && selection.id===r.id}
-                        color={r.fill} label={`▢ ${r.name} (${r.shape})`} onClick={() => setSelection({ kind: "room", id: r.id })} />
+                        locked={lockedSet.has(r.id)}
+                        color={r.fill} label={`▢ ${r.name} (${r.shape})`} onClick={() => handleSelect({ kind: "room", id: r.id })} />
                     ))}
-                    {partitions.map(pt => (
+                    {state.partitions.map(pt => (
                       <LayerRow key={pt.id} active={selection?.kind==="partition" && selection.id===pt.id}
-                        color={pt.color} label="— Partition" onClick={() => setSelection({ kind: "partition", id: pt.id })} />
+                        color={pt.color} label="— Partition" onClick={() => handleSelect({ kind: "partition", id: pt.id })} />
                     ))}
-                    {doors.map(d => (
+                    {state.doors.map(d => (
                       <LayerRow key={d.id} active={selection?.kind==="door" && selection.id===d.id}
-                        color="#1B1A1A" label="⌐ Door" onClick={() => setSelection({ kind: "door", id: d.id })} />
+                        color="#1B1A1A" label="⌐ Door" onClick={() => handleSelect({ kind: "door", id: d.id })} />
                     ))}
-                    {furniture.map(f => (
+                    {state.furniture.map(f => (
                       <LayerRow key={f.id} active={selection?.kind==="furniture" && selection.id===f.id}
-                        color={f.fill} label={f.name} onClick={() => setSelection({ kind: "furniture", id: f.id })} />
+                        locked={lockedSet.has(f.id)}
+                        color={f.fill} label={f.name} onClick={() => handleSelect({ kind: "furniture", id: f.id })} />
                     ))}
                   </ul>
                 </>
@@ -297,22 +460,47 @@ function Index() {
             <div className="absolute inset-0 p-4">
               <div className="h-full w-full overflow-hidden rounded-xl bg-card shadow-sm ring-1 ring-border">
                 <FloorCanvas
-                  rooms={rooms} doors={doors} partitions={partitions} furniture={furniture}
-                  selection={selection} tool={tool}
+                  rooms={state.rooms} doors={state.doors} partitions={state.partitions} furniture={state.furniture}
+                  selection={selection}
+                  multiSelection={multiSelection}
+                  lockedIds={lockedSet}
+                  tool={tool}
                   roomFill={ROOM_PRESETS[roomPresetIdx].fill}
                   roomShape={roomShape}
-                  onSelect={setSelection}
+                  onSelect={handleSelect}
                   onUpdateFurniture={updateF}
                   onUpdateRoom={updateR}
                   onUpdateDoor={updateD}
                   onUpdatePartition={updateP}
-                  onAddRoom={(r) => setRooms(a => [...a, { ...r, name: ROOM_PRESETS[roomPresetIdx].name, fill: ROOM_PRESETS[roomPresetIdx].fill }])}
-                  onAddDoor={(d) => setDoors(a => [...a, d])}
-                  onAddPartition={(pt) => setPartitions(a => [...a, pt])}
+                  onAddRoom={(r) => setState(s => ({ ...s, rooms: [...s.rooms, { ...r, name: ROOM_PRESETS[roomPresetIdx].name, fill: ROOM_PRESETS[roomPresetIdx].fill }] }))}
+                  onAddDoor={(d) => setState(s => ({ ...s, doors: [...s.doors, d] }))}
+                  onAddPartition={(pt) => setState(s => ({ ...s, partitions: [...s.partitions, pt] }))}
                   onSetTool={setTool}
+                  onContextMenu={onContextMenu}
                 />
               </div>
             </div>
+
+            {/* Context Menu */}
+            {ctxMenu && (
+              <div
+                className="fixed z-50 min-w-[200px] rounded-xl border border-border bg-card p-1 shadow-2xl"
+                style={{ left: Math.min(ctxMenu.x, window.innerWidth - 220), top: Math.min(ctxMenu.y, window.innerHeight - 360) }}
+                onMouseDown={(e) => e.stopPropagation()}
+              >
+                <CtxItem icon={Copy} label="Duplicate" shortcut="⌘D" disabled={!selection} onClick={duplicateSelection} />
+                <CtxItem icon={Clipboard} label="Copy" shortcut="⌘C" disabled={!selection} onClick={duplicateSelection} />
+                <CtxDivider />
+                <CtxItem icon={isSelLocked ? Unlock : Lock} label={isSelLocked ? "Unlock" : "Lock"} disabled={!selection} onClick={toggleLockSelection} />
+                <CtxItem icon={Group} label="Group" shortcut="⌘G" disabled={multiSelection.length < 2} onClick={groupSelection} />
+                <CtxItem icon={Ungroup} label="Ungroup" shortcut="⇧⌘G" disabled={!selection} onClick={ungroupSelection} />
+                <CtxDivider />
+                <CtxItem icon={ArrowUp} label="Bring to Front" disabled={selection?.kind !== "furniture"} onClick={() => reorder("front")} />
+                <CtxItem icon={ArrowDown} label="Send to Back" disabled={selection?.kind !== "furniture"} onClick={() => reorder("back")} />
+                <CtxDivider />
+                <CtxItem icon={Scissors} label="Delete" shortcut="⌫" disabled={!selection} onClick={deleteSelection} destructive />
+              </div>
+            )}
 
             {/* Bottom toolbar */}
             <div className="absolute bottom-6 left-1/2 flex -translate-x-1/2 items-center gap-1 rounded-xl border border-border bg-card px-2 py-1.5 shadow-lg">
@@ -321,8 +509,12 @@ function Index() {
               <ToolBtn active={tool==="partition"} onClick={() => setTool("partition")} title="Partition (P)"><Minus className="h-4 w-4" /></ToolBtn>
               <ToolBtn active={tool==="door"} onClick={() => setTool("door")} title="Door (D)"><DoorOpen className="h-4 w-4" /></ToolBtn>
               <div className="mx-1 h-5 w-px bg-border" />
-              <button disabled={!selection} onClick={duplicateSelection} className="rounded-lg p-2 hover:bg-secondary disabled:opacity-40"><Copy className="h-4 w-4" /></button>
-              <button disabled={!selection} onClick={deleteSelection} className="rounded-lg p-2 hover:bg-secondary disabled:opacity-40"><Trash2 className="h-4 w-4" /></button>
+              <button disabled={!selection} onClick={duplicateSelection} title="Duplicate" className="rounded-lg p-2 hover:bg-secondary disabled:opacity-40"><Copy className="h-4 w-4" /></button>
+              <button disabled={!selection} onClick={toggleLockSelection} title="Lock/Unlock" className="rounded-lg p-2 hover:bg-secondary disabled:opacity-40">
+                {isSelLocked ? <Unlock className="h-4 w-4" /> : <Lock className="h-4 w-4" />}
+              </button>
+              <button disabled={multiSelection.length < 2} onClick={groupSelection} title="Group (⌘G)" className="rounded-lg p-2 hover:bg-secondary disabled:opacity-40"><Group className="h-4 w-4" /></button>
+              <button disabled={!selection} onClick={deleteSelection} title="Delete" className="rounded-lg p-2 hover:bg-secondary disabled:opacity-40"><Trash2 className="h-4 w-4" /></button>
               <div className="mx-1 h-5 w-px bg-border" />
               <span className="px-2 text-xs text-muted-foreground">
                 {tool==="room" ? "Drag to draw room" :
@@ -364,16 +556,35 @@ function ToolBtn({ active, onClick, title, children }: { active: boolean; onClic
   );
 }
 
-function LayerRow({ active, color, label, onClick }: { active: boolean; color: string; label: string; onClick: () => void }) {
+function LayerRow({ active, color, label, onClick, locked }: { active: boolean; color: string; label: string; onClick: () => void; locked?: boolean }) {
   return (
     <li>
       <button onClick={onClick}
         className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs ${active ? "bg-accent text-accent-foreground" : "hover:bg-secondary"}`}>
         <span className="h-2.5 w-2.5 rounded-sm border border-border" style={{ background: color }} />
         <span className="flex-1 text-left truncate">{label}</span>
+        {locked && <Lock className="h-3 w-3 text-muted-foreground" />}
       </button>
     </li>
   );
+}
+
+function CtxItem({ icon: Icon, label, shortcut, onClick, disabled, destructive }: { icon: typeof Square; label: string; shortcut?: string; onClick: () => void; disabled?: boolean; destructive?: boolean }) {
+  return (
+    <button
+      disabled={disabled}
+      onClick={onClick}
+      className={`flex w-full items-center gap-2.5 rounded-md px-2.5 py-1.5 text-left text-sm transition disabled:opacity-40 ${destructive ? "text-destructive hover:bg-destructive/10" : "hover:bg-secondary"}`}
+    >
+      <Icon className="h-3.5 w-3.5" />
+      <span className="flex-1">{label}</span>
+      {shortcut && <span className="text-[10px] font-mono text-muted-foreground">{shortcut}</span>}
+    </button>
+  );
+}
+
+function CtxDivider() {
+  return <div className="my-1 h-px bg-border" />;
 }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {

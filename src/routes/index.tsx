@@ -651,10 +651,25 @@ function ActionButtons({ onDuplicate, onDelete }: { onDuplicate?: () => void; on
 }
 
 function FurnitureProps({ f, onChange, onDelete, onDuplicate }: { f: Furniture; onChange: (p: Partial<Furniture>) => void; onDelete: () => void; onDuplicate: () => void }) {
+  const isDining = f.type === "dining-rect" || f.type === "dining-round" || f.type === "dining-square" || f.type === "booth";
   return (
     <>
       <Section title="Furniture">
         <Row label="Name"><input value={f.name} onChange={e => onChange({ name: e.target.value })} className="w-full rounded-md border border-border bg-card px-2 py-1 text-sm" /></Row>
+        {isDining && (
+          <>
+            <Row label="Table #"><input value={f.tableNo ?? ""} placeholder="e.g. 12" onChange={e => onChange({ tableNo: e.target.value })} className="w-full rounded-md border border-border bg-card px-2 py-1 text-sm" /></Row>
+            <Row label="Chairs">
+              <div className="flex w-full items-center gap-2">
+                <button onClick={() => onChange({ chairs: Math.max(0, (f.chairs ?? 0) - 1) })} className="grid h-7 w-7 place-items-center rounded-md border border-border hover:bg-secondary">−</button>
+                <input type="number" min={0} max={20} value={f.chairs ?? 0}
+                  onChange={e => onChange({ chairs: Math.max(0, Math.min(20, parseInt(e.target.value) || 0)) })}
+                  className="w-full rounded-md border border-border bg-card px-2 py-1 text-center text-sm" />
+                <button onClick={() => onChange({ chairs: Math.min(20, (f.chairs ?? 0) + 1) })} className="grid h-7 w-7 place-items-center rounded-md border border-border hover:bg-secondary">+</button>
+              </div>
+            </Row>
+          </>
+        )}
         <Row label="Position"><div className="grid w-full grid-cols-2 gap-1.5"><NumField v={f.x} suffix="x" onChange={n => onChange({ x: n })} /><NumField v={f.y} suffix="y" onChange={n => onChange({ y: n })} /></div></Row>
         <Row label="Size"><div className="grid w-full grid-cols-2 gap-1.5"><NumField v={f.w} suffix="w" onChange={n => onChange({ w: Math.max(20, n) })} /><NumField v={f.h} suffix="h" onChange={n => onChange({ h: Math.max(20, n) })} /></div></Row>
         <Row label="Radius"><NumField v={f.radius} onChange={n => onChange({ radius: Math.max(0, n) })} /></Row>

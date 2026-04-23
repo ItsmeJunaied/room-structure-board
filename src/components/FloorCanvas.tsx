@@ -280,9 +280,10 @@ export function FloorCanvas(p: Props) {
               stroke={sel ? "var(--primary)" : "var(--wall)"}
               strokeWidth={sel ? 5 : 4}
               strokeLinejoin="miter"
-              style={{ cursor: isLocked ? "not-allowed" : "move" }}
+              style={{ cursor: p.readOnly ? "default" : (isLocked ? "not-allowed" : "move") }}
               onMouseDown={(e) => {
                 if (spaceDown || e.button === 1) return;
+                if (p.readOnly) return;
                 e.stopPropagation();
                 p.onSelect({ kind: "room", id: r.id }, e.shiftKey);
                 if (isLocked) return;
@@ -291,6 +292,7 @@ export function FloorCanvas(p: Props) {
               }}
               onContextMenu={(e) => {
                 e.preventDefault(); e.stopPropagation();
+                if (p.readOnly) return;
                 p.onSelect({ kind: "room", id: r.id });
                 p.onContextMenu?.({ x: e.clientX, y: e.clientY, target: { kind: "room", id: r.id } });
               }}

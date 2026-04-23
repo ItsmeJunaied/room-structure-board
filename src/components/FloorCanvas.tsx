@@ -18,6 +18,9 @@ interface Props {
   tool: Tool;
   roomFill: string;
   roomShape: RoomShape;
+  /** When true, all editing/dragging is disabled. Furniture click fires onPickFurniture. */
+  readOnly?: boolean;
+  onPickFurniture?: (f: Furniture) => void;
   onSelect: (s: Selection, additive?: boolean) => void;
   onUpdateFurniture: (id: string, patch: Partial<Furniture>) => void;
   onUpdateRoom: (id: string, patch: Partial<Room>) => void;

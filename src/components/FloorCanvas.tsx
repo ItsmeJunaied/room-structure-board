@@ -423,6 +423,15 @@ export function FloorCanvas(p: Props) {
         <line x1={drag.x1} y1={drag.y1} x2={drag.x2} y2={drag.y2}
           stroke="var(--primary)" strokeWidth="6" strokeDasharray="6 4" strokeLinecap="round" />
       )}
+      {drag?.kind === "marquee" && drag.moved && (() => {
+        const x = Math.min(drag.x1, drag.x2), y = Math.min(drag.y1, drag.y2);
+        const w = Math.abs(drag.x2 - drag.x1), h = Math.abs(drag.y2 - drag.y1);
+        return (
+          <rect x={x} y={y} width={w} height={h}
+            fill="var(--primary)" fillOpacity="0.08"
+            stroke="var(--primary)" strokeWidth="1" strokeDasharray="4 3" pointerEvents="none" />
+        );
+      })()}
 
       {/* Furniture */}
       {p.furniture.map(f => {

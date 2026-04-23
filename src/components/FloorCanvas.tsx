@@ -38,6 +38,8 @@ interface Props {
   onAddPartition: (p: Partition) => void;
   onSetTool: (t: Tool) => void;
   onContextMenu?: (e: ContextMenuEvent) => void;
+  /** Called when user drags a marquee on empty canvas. Box is in SVG coords. */
+  onMarquee?: (box: { x: number; y: number; w: number; h: number }, additive: boolean) => void;
 }
 
 type Drag =
@@ -52,6 +54,7 @@ type Drag =
   | { kind: "rotateD"; id: string; cx: number; cy: number }
   | { kind: "drawRoom"; x1: number; y1: number; x2: number; y2: number }
   | { kind: "drawPart"; x1: number; y1: number; x2: number; y2: number }
+  | { kind: "marquee"; x1: number; y1: number; x2: number; y2: number; additive: boolean; moved: boolean }
   | { kind: "pan"; sx: number; sy: number; ovx: number; ovy: number }
   | null;
 

@@ -413,6 +413,37 @@ function Index() {
 
   const onContextMenu = (e: ContextMenuEvent) => setCtxMenu({ x: e.x, y: e.y });
 
+  /** Marquee select: pick all rooms whose center lies inside the marquee box. */
+  const onMarquee = (box: { x: number; y: number; w: number; h: number }, additive: boolean) => {
+    const inside = (rx: number, ry: number) =>
+      rx >= box.x && rx <= box.x + box.w && ry >= box.y && ry <= box.y + box.h;
+    const hits = state.rooms.filter(r => inside(r.x + r.w / 2, r.y + r.h / 2)).map(r => r.id);
+    if (hits.length === 0 && !additive) {
+      setSelection(null); setMultiSelection([]); return;
+    }
+    setMultiSelection(prev => {
+      const merged = additive ? Array.from(new Set([...prev, ...hits])) : hits;
+      return merged;
+    });
+    if (hits.length > 0) setSelection({ kind: "room", id: hits[hits.length - 1] });
+  };
+
+  /** Reorder a furniture layer by drag-and-drop in the Layers panel. */
+  const reorderLayer = (fromId: string, toId: string) => {
+    if (fromId === toId) return;
+    setState(s => {
+      // The layers panel renders furniture in reverse order (top item first).
+      // We translate that to underlying array indices.
+      const arr = [...s.furniture];
+      const fromIdx = arr.findIndex(f => f.id === fromId);
+      const toIdx = arr.findIndex(f => f.id === toId);
+      if (fromIdx < 0 || toIdx < 0) return s;
+      const [item] = arr.splice(fromIdx, 1);
+      arr.splice(toIdx, 0, item);
+      return { ...s, furniture: arr };
+    });
+  };
+
   const groups = Array.from(new Set(PALETTE.map(p => p.group)));
   const selFurn = selection?.kind === "furniture" ? state.furniture.find(f => f.id === selection.id) : null;
   const selRoom = selection?.kind === "room" ? state.rooms.find(r => r.id === selection.id) : null;

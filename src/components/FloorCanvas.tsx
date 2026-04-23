@@ -18,6 +18,9 @@ interface Props {
   tool: Tool;
   roomFill: string;
   roomShape: RoomShape;
+  /** When true, all editing/dragging is disabled. Furniture click fires onPickFurniture. */
+  readOnly?: boolean;
+  onPickFurniture?: (f: Furniture) => void;
   onSelect: (s: Selection, additive?: boolean) => void;
   onUpdateFurniture: (id: string, patch: Partial<Furniture>) => void;
   onUpdateRoom: (id: string, patch: Partial<Room>) => void;
@@ -195,10 +198,14 @@ export function FloorCanvas(p: Props) {
   const onBgDown = (e: React.MouseEvent) => {
     const target = e.target as Element;
     const isBg = target === svgRef.current || target.id === "bg";
-    // Pan: space + drag (anywhere) or middle mouse
+    // Pan: space + drag (anywhere) or middle mouse — allowed even in readOnly
     if ((spaceDown && e.button === 0) || e.button === 1) {
       e.preventDefault();
       setDrag({ kind: "pan", sx: e.clientX, sy: e.clientY, ovx: view.x, ovy: view.y });
+      return;
+    }
+    if (p.readOnly) {
+      if (isBg) p.onSelect(null);
       return;
     }
     if (!isBg) return;
@@ -273,9 +280,10 @@ export function FloorCanvas(p: Props) {
               stroke={sel ? "var(--primary)" : "var(--wall)"}
               strokeWidth={sel ? 5 : 4}
               strokeLinejoin="miter"
-              style={{ cursor: isLocked ? "not-allowed" : "move" }}
+              style={{ cursor: p.readOnly ? "default" : (isLocked ? "not-allowed" : "move") }}
               onMouseDown={(e) => {
                 if (spaceDown || e.button === 1) return;
+                if (p.readOnly) return;
                 e.stopPropagation();
                 p.onSelect({ kind: "room", id: r.id }, e.shiftKey);
                 if (isLocked) return;
@@ -284,6 +292,7 @@ export function FloorCanvas(p: Props) {
               }}
               onContextMenu={(e) => {
                 e.preventDefault(); e.stopPropagation();
+                if (p.readOnly) return;
                 p.onSelect({ kind: "room", id: r.id });
                 p.onContextMenu?.({ x: e.clientX, y: e.clientY, target: { kind: "room", id: r.id } });
               }}
@@ -404,6 +413,11 @@ export function FloorCanvas(p: Props) {
               onMouseDown={(e) => {
                 if (spaceDown) return;
                 e.stopPropagation();
+                if (p.readOnly) {
+                  p.onPickFurniture?.(f);
+                  p.onSelect({ kind: "furniture", id: f.id });
+                  return;
+                }
                 p.onSelect({ kind: "furniture", id: f.id }, e.shiftKey);
                 if (isLocked) return;
                 const { x, y } = toSvg(e.clientX, e.clientY);
@@ -411,6 +425,7 @@ export function FloorCanvas(p: Props) {
               }}
               onContextMenu={(e) => {
                 e.preventDefault(); e.stopPropagation();
+                if (p.readOnly) return;
                 p.onSelect({ kind: "furniture", id: f.id });
                 p.onContextMenu?.({ x: e.clientX, y: e.clientY, target: { kind: "furniture", id: f.id } });
               }}
@@ -425,7 +440,7 @@ export function FloorCanvas(p: Props) {
       })}
 
       {/* Furniture chrome (single primary selection) */}
-      {p.selection?.kind === "furniture" && !locked.has(p.selection.id) && (() => {
+      {!p.readOnly && p.selection?.kind === "furniture" && !locked.has(p.selection.id) && (() => {
         const sel = p.furniture.find(f => f.id === p.selection!.id);
         if (!sel) return null;
         const cx = sel.x + sel.w / 2, cy = sel.y + sel.h / 2;
@@ -457,7 +472,7 @@ export function FloorCanvas(p: Props) {
       })()}
 
       {/* Room chrome */}
-      {p.selection?.kind === "room" && !locked.has(p.selection.id) && (() => {
+      {!p.readOnly && p.selection?.kind === "room" && !locked.has(p.selection.id) && (() => {
         const r = p.rooms.find(x => x.id === p.selection!.id);
         if (!r) return null;
         const cx = r.x + r.w / 2, cy = r.y + r.h / 2;

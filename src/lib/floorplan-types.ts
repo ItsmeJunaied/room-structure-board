@@ -1,7 +1,7 @@
 export type FurnitureType =
   | "bed" | "sofa" | "chair" | "table" | "cupboard"
   | "wardrobe" | "lamp" | "plant" | "mirror" | "pillow" | "rug" | "tv" | "sink" | "toilet" | "bathtub"
-  | "salon-chair" | "massage-bed" | "cash-counter"
+  | "salon-chair" | "massage-bed" | "cash-counter" | "shampoo-chair" | "waiting-sofa"
   | "dining-rect" | "dining-round" | "dining-square" | "booth";
 
 export type TableShape = "rect" | "round" | "square";
@@ -23,6 +23,10 @@ export interface Furniture {
   chairs?: number;
   /** Optional table number / label (for restaurant) */
   tableNo?: string;
+  /** If true this spot can take orders in POS. If false it's decoration only. */
+  orderable?: boolean;
+  /** Manually mark as reserved/booked in POS */
+  reserved?: boolean;
 }
 
 export type RoomShape = "rect" | "circle" | "l-shape";
@@ -36,17 +40,16 @@ export interface Room {
   w: number;
   h: number;
   fill: string;
-  /** For l-shape: notch size as fraction of w/h (0..1), corner: which corner is cut */
   notch?: number;
   corner?: "tl" | "tr" | "bl" | "br";
 }
 
 export interface Door {
   id: string;
-  x: number;        // hinge point
+  x: number;
   y: number;
-  size: number;     // door length
-  rotation: number; // degrees
+  size: number;
+  rotation: number;
 }
 
 export interface Partition {
@@ -68,6 +71,12 @@ export type Selection =
   | { kind: "partition"; id: string }
   | null;
 
+/** Furniture types that can take orders in POS by default. */
+export const ORDERABLE_BY_DEFAULT: FurnitureType[] = [
+  "salon-chair", "massage-bed", "shampoo-chair",
+  "dining-rect", "dining-round", "dining-square", "booth",
+];
+
 export const DEFAULTS: Record<FurnitureType, Omit<Furniture, "id" | "x" | "y">> = {
   bed:      { type: "bed",      name: "Bed",       w: 160, h: 120, rotation: 0, fill: "#B7D9C0", stroke: "#1B1A1A", opacity: 0.85, radius: 8 },
   sofa:     { type: "sofa",     name: "Sofa",      w: 140, h: 56,  rotation: 0, fill: "#EDEDE8", stroke: "#1B1A1A", opacity: 1,    radius: 8 },
@@ -76,7 +85,7 @@ export const DEFAULTS: Record<FurnitureType, Omit<Furniture, "id" | "x" | "y">> 
   cupboard: { type: "cupboard", name: "Cupboard",  w: 140, h: 36,  rotation: 0, fill: "#F2F2EE", stroke: "#1B1A1A", opacity: 1,    radius: 2 },
   wardrobe: { type: "wardrobe", name: "Wardrobe",  w: 44,  h: 120, rotation: 0, fill: "#F2F2EE", stroke: "#1B1A1A", opacity: 1,    radius: 2 },
   lamp:     { type: "lamp",     name: "Lamp",      w: 28,  h: 28,  rotation: 0, fill: "#FAE7B5", stroke: "#1B1A1A", opacity: 1,    radius: 14 },
-  plant:    { type: "plant",    name: "Plant",     w: 30,  h: 30,  rotation: 0, fill: "#86C29B", stroke: "#1B1A1A", opacity: 1,    radius: 15 },
+  plant:    { type: "plant",    name: "Plant",     w: 44,  h: 44,  rotation: 0, fill: "#3F8F5E", stroke: "#1B1A1A", opacity: 1,    radius: 22 },
   mirror:   { type: "mirror",   name: "Mirror",    w: 60,  h: 12,  rotation: 0, fill: "#D7E3EE", stroke: "#1B1A1A", opacity: 1,    radius: 2 },
   pillow:   { type: "pillow",   name: "Pillow",    w: 36,  h: 26,  rotation: 0, fill: "#F4E4D0", stroke: "#1B1A1A", opacity: 1,    radius: 8 },
   rug:      { type: "rug",      name: "Rug",       w: 180, h: 120, rotation: 0, fill: "#E8D7C2", stroke: "#1B1A1A", opacity: 0.6,  radius: 12 },
@@ -84,13 +93,15 @@ export const DEFAULTS: Record<FurnitureType, Omit<Furniture, "id" | "x" | "y">> 
   sink:     { type: "sink",     name: "Sink",      w: 60,  h: 40,  rotation: 0, fill: "#E6EEF3", stroke: "#1B1A1A", opacity: 1,    radius: 6 },
   toilet:   { type: "toilet",   name: "Toilet",    w: 38,  h: 56,  rotation: 0, fill: "#FFFFFF", stroke: "#1B1A1A", opacity: 1,    radius: 14 },
   bathtub:  { type: "bathtub",  name: "Bathtub",   w: 130, h: 70,  rotation: 0, fill: "#E6EEF3", stroke: "#1B1A1A", opacity: 1,    radius: 18 },
-  "salon-chair":  { type: "salon-chair",  name: "Salon Chair",  w: 60,  h: 70,  rotation: 0, fill: "#2A2A2A", stroke: "#1B1A1A", opacity: 1, radius: 12 },
-  "massage-bed":  { type: "massage-bed",  name: "Massage Bed",  w: 180, h: 70,  rotation: 0, fill: "#F5E9DC", stroke: "#1B1A1A", opacity: 1, radius: 14 },
-  "cash-counter": { type: "cash-counter", name: "Cash Counter", w: 140, h: 60,  rotation: 0, fill: "#C9A87C", stroke: "#1B1A1A", opacity: 1, radius: 4  },
-  "dining-rect":   { type: "dining-rect",   name: "Rect Table",   w: 120, h: 70,  rotation: 0, fill: "#7C8CF8", stroke: "#1B1A1A", opacity: 1, radius: 8,  chairs: 4 },
-  "dining-round":  { type: "dining-round",  name: "Round Table",  w: 90,  h: 90,  rotation: 0, fill: "#EDEDE8", stroke: "#1B1A1A", opacity: 1, radius: 45, chairs: 4 },
-  "dining-square": { type: "dining-square", name: "Square Table", w: 80,  h: 80,  rotation: 0, fill: "#7C8CF8", stroke: "#1B1A1A", opacity: 1, radius: 6,  chairs: 4 },
-  "booth":         { type: "booth",         name: "Booth",        w: 140, h: 90,  rotation: 0, fill: "#C9A87C", stroke: "#1B1A1A", opacity: 1, radius: 8,  chairs: 4 },
+  "salon-chair":   { type: "salon-chair",   name: "Salon Chair",   w: 64,  h: 84,  rotation: 0, fill: "#1F2937", stroke: "#0F172A", opacity: 1, radius: 14 },
+  "massage-bed":   { type: "massage-bed",   name: "Massage Bed",   w: 180, h: 70,  rotation: 0, fill: "#F5E9DC", stroke: "#1B1A1A", opacity: 1, radius: 14 },
+  "cash-counter":  { type: "cash-counter",  name: "Cash Counter",  w: 140, h: 60,  rotation: 0, fill: "#C9A87C", stroke: "#1B1A1A", opacity: 1, radius: 4  },
+  "shampoo-chair": { type: "shampoo-chair", name: "Shampoo Chair", w: 70,  h: 100, rotation: 0, fill: "#374151", stroke: "#0F172A", opacity: 1, radius: 16 },
+  "waiting-sofa":  { type: "waiting-sofa",  name: "Waiting Sofa",  w: 160, h: 60,  rotation: 0, fill: "#A78BFA", stroke: "#1B1A1A", opacity: 1, radius: 14 },
+  "dining-rect":   { type: "dining-rect",   name: "Rect Table",    w: 120, h: 70,  rotation: 0, fill: "#7C8CF8", stroke: "#1B1A1A", opacity: 1, radius: 8,  chairs: 4 },
+  "dining-round":  { type: "dining-round",  name: "Round Table",   w: 90,  h: 90,  rotation: 0, fill: "#EDEDE8", stroke: "#1B1A1A", opacity: 1, radius: 45, chairs: 4 },
+  "dining-square": { type: "dining-square", name: "Square Table",  w: 80,  h: 80,  rotation: 0, fill: "#7C8CF8", stroke: "#1B1A1A", opacity: 1, radius: 6,  chairs: 4 },
+  "booth":         { type: "booth",         name: "Booth",         w: 140, h: 90,  rotation: 0, fill: "#C9A87C", stroke: "#1B1A1A", opacity: 1, radius: 8,  chairs: 4 },
 };
 
 export type BoardKind = "floor" | "salon" | "restaurant";
@@ -127,7 +138,6 @@ export function roomPath(r: Room): string {
     const nw = r.w * n, nh = r.h * n;
     const c = r.corner ?? "tr";
     const { x, y, w, h } = r;
-    // Build L by cutting the chosen corner
     switch (c) {
       case "tr": return `M ${x} ${y} L ${x + w - nw} ${y} L ${x + w - nw} ${y + nh} L ${x + w} ${y + nh} L ${x + w} ${y + h} L ${x} ${y + h} Z`;
       case "tl": return `M ${x + nw} ${y} L ${x + w} ${y} L ${x + w} ${y + h} L ${x} ${y + h} L ${x} ${y + nh} L ${x + nw} ${y + nh} Z`;

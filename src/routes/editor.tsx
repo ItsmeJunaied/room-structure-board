@@ -74,13 +74,34 @@ interface BoardState {
 const emptyBoard = (): BoardState => ({ rooms: [], doors: [], partitions: [], furniture: [], groups: {}, locked: [] });
 
 function Index() {
-  const [board, setBoard] = useState<BoardKind>("floor");
-  const [boards, setBoards] = useState<Record<BoardKind, BoardState>>({
-    floor: emptyBoard(),
-    salon: emptyBoard(),
-    restaurant: emptyBoard(),
+  const navigate = useNavigate();
+  const user = typeof window !== "undefined" ? getCurrentUser() : null;
+
+  // Auth gate
+  useEffect(() => {
+    if (!user) navigate({ to: "/login" });
+  }, [user, navigate]);
+
+  // Default board based on role
+  const defaultBoard: BoardKind =
+    user?.role === "salon" ? "salon" : user?.role === "restaurant" ? "restaurant" : "floor";
+
+  const [board, setBoard] = useState<BoardKind>(defaultBoard);
+  const [boards, setBoards] = useState<Record<BoardKind, BoardState>>(() => {
+    if (typeof window === "undefined" || !user) {
+      return { floor: emptyBoard(), salon: emptyBoard(), restaurant: emptyBoard() };
+    }
+    return loadBoards(user.email) ?? { floor: emptyBoard(), salon: emptyBoard(), restaurant: emptyBoard() };
   });
+  const [savedAt, setSavedAt] = useState<number>(0);
   const [boardMenuOpen, setBoardMenuOpen] = useState(false);
+
+  // Auto-save to localStorage
+  useEffect(() => {
+    if (!user) return;
+    saveBoards(user.email, boards);
+    setSavedAt(Date.now());
+  }, [boards, user]);
 
   const [selection, setSelection] = useState<Selection>(null);
   const [multiSelection, setMultiSelection] = useState<string[]>([]); // ids

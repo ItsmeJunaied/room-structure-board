@@ -137,16 +137,23 @@ function Index() {
   const updateF = (id: string, patch: Partial<Furniture>) => {
     setState(s => {
       const groupId = Object.keys(s.groups).find(gid => s.groups[gid].includes(id));
+      const reparent = (f: Furniture): Furniture => {
+        if (patch.x === undefined && patch.y === undefined) return f;
+        const fx = (patch.x ?? f.x) + f.w / 2;
+        const fy = (patch.y ?? f.y) + f.h / 2;
+        const r = s.rooms.find(rr => fx >= rr.x && fx <= rr.x + rr.w && fy >= rr.y && fy <= rr.y + rr.h);
+        return { ...f, roomId: r?.id };
+      };
       if (groupId && (patch.x !== undefined || patch.y !== undefined)) {
         const cur = s.furniture.find(f => f.id === id);
         if (cur) {
           const dx = patch.x !== undefined ? patch.x - cur.x : 0;
           const dy = patch.y !== undefined ? patch.y - cur.y : 0;
           const ids = s.groups[groupId];
-          return { ...s, furniture: s.furniture.map(f => ids.includes(f.id) ? { ...f, x: f.x + dx, y: f.y + dy } : f) };
+          return { ...s, furniture: s.furniture.map(f => ids.includes(f.id) ? reparent({ ...f, x: f.x + dx, y: f.y + dy }) : f) };
         }
       }
-      return { ...s, furniture: s.furniture.map(f => f.id === id ? { ...f, ...patch } : f) };
+      return { ...s, furniture: s.furniture.map(f => f.id === id ? reparent({ ...f, ...patch }) : f) };
     });
   };
   const updateR = (id: string, patch: Partial<Room>) =>

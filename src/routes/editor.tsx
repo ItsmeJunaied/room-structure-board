@@ -359,16 +359,25 @@ function Index() {
           </div>
 
           <div className="flex items-center gap-2">
+            <span className="hidden md:inline text-[11px] text-muted-foreground">
+              {savedAt ? "Saved ✓" : ""}
+            </span>
             <button onClick={clearAll} className="rounded-md px-2 py-1.5 text-xs text-muted-foreground hover:bg-secondary hover:text-foreground">Clear</button>
-            <button className="rounded-md p-2 hover:bg-secondary"><Eye className="h-4 w-4" /></button>
             <button onClick={() => setDark(d => !d)} className="rounded-md p-2 hover:bg-secondary">
               {dark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             </button>
-            <button onClick={exportJSON} className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:opacity-90">
-              <Download className="h-3.5 w-3.5" /> Export
+            <button onClick={exportJSON} title="Export JSON" className="rounded-md p-2 hover:bg-secondary">
+              <Download className="h-4 w-4" />
+            </button>
+            <Link to="/pos" className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:opacity-90">
+              <Save className="h-3.5 w-3.5" /> Open POS <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
+            <button onClick={() => { logout(); navigate({ to: "/login" }); }} title="Logout" className="rounded-md p-2 hover:bg-secondary">
+              <LogOut className="h-4 w-4" />
             </button>
           </div>
         </header>
+
 
         <div className="flex flex-1 overflow-hidden">
           {/* Left panel */}

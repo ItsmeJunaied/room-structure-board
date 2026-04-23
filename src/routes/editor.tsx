@@ -150,11 +150,25 @@ function Index() {
     });
   };
   const updateR = (id: string, patch: Partial<Room>) =>
-    setState(s => ({ ...s, rooms: s.rooms.map(r => r.id === id ? { ...r, ...patch } : r) }));
+    setState(s => {
+      const cur = s.rooms.find(r => r.id === id);
+      const dx = cur && patch.x !== undefined ? patch.x - cur.x : 0;
+      const dy = cur && patch.y !== undefined ? patch.y - cur.y : 0;
+      const rooms = s.rooms.map(r => r.id === id ? { ...r, ...patch } : r);
+      // Move all furniture attached to this room by the same delta
+      const furniture = (dx || dy)
+        ? s.furniture.map(f => f.roomId === id ? { ...f, x: f.x + dx, y: f.y + dy } : f)
+        : s.furniture;
+      return { ...s, rooms, furniture };
+    });
   const updateD = (id: string, patch: Partial<Door>) =>
     setState(s => ({ ...s, doors: s.doors.map(d => d.id === id ? { ...d, ...patch } : d) }));
   const updateP = (id: string, patch: Partial<Partition>) =>
     setState(s => ({ ...s, partitions: s.partitions.map(x => x.id === id ? { ...x, ...patch } : x) }));
+
+  /** Find the room whose bounding box contains the given point. */
+  const roomAt = (px: number, py: number): Room | undefined =>
+    state.rooms.find(r => px >= r.x && px <= r.x + r.w && py >= r.y && py <= r.y + r.h);
 
   const addFurniture = (type: FurnitureType) => {
     const target = state.rooms[0];
@@ -165,6 +179,7 @@ function Index() {
       ...def, id: uid(),
       x: cx - def.w / 2, y: cy - def.h / 2,
       orderable: ORDERABLE_BY_DEFAULT.includes(type),
+      roomId: target?.id,
     };
     // Auto-pair: salon chair gets a mirror placed in front of it
     const extras: Furniture[] = [];
@@ -175,6 +190,7 @@ function Index() {
         x: item.x + (item.w - mdef.w) / 2,
         y: item.y - mdef.h - 16,
         orderable: false,
+        roomId: target?.id,
       });
     }
     setState(s => ({ ...s, furniture: [...s.furniture, item, ...extras] }));

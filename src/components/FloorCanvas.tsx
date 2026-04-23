@@ -529,12 +529,22 @@ export function FloorCanvas(p: Props) {
   );
 }
 
-function FurnitureShape({ f, onMouseDown, onContextMenu }: { f: Furniture; onMouseDown: (e: React.MouseEvent) => void; onContextMenu?: (e: React.MouseEvent) => void }) {
-  const common = { onMouseDown, onContextMenu, style: { cursor: "move" as const }, fill: f.fill, stroke: f.stroke, strokeWidth: 1.5, opacity: f.opacity };
+type ShapeProps = {
+  f: Furniture;
+  onMouseDown: (e: React.MouseEvent) => void;
+  onContextMenu?: (e: React.MouseEvent) => void;
+  onMouseEnter?: () => void;
+  onMouseLeave?: () => void;
+};
+
+function FurnitureShape({ f, onMouseDown, onContextMenu, onMouseEnter, onMouseLeave }: ShapeProps) {
+  const handlers = { onMouseDown, onContextMenu, onMouseEnter, onMouseLeave };
+  const common = { ...handlers, style: { cursor: "move" as const }, fill: f.fill, stroke: f.stroke, strokeWidth: 1.5, opacity: f.opacity };
+  const cx = f.x + f.w / 2, cy = f.y + f.h / 2;
   switch (f.type) {
     case "bed":
       return (
-        <g onMouseDown={onMouseDown} onContextMenu={onContextMenu} style={{ cursor: "move" }}>
+        <g {...handlers} style={{ cursor: "move" }}>
           <rect x={f.x} y={f.y} width={f.w} height={f.h} rx={f.radius} fill={f.fill} opacity={f.opacity} stroke={f.stroke} strokeWidth={1.5} />
           <rect x={f.x} y={f.y} width={f.w} height={f.h} rx={f.radius} fill="url(#bedTexture)" opacity={0.4} pointerEvents="none" />
           <rect x={f.x + 8} y={f.y + 6} width={f.w * 0.32} height={22} rx={4} fill="white" opacity={0.7} stroke={f.stroke} strokeWidth={0.8} pointerEvents="none" />
@@ -542,77 +552,107 @@ function FurnitureShape({ f, onMouseDown, onContextMenu }: { f: Furniture; onMou
         </g>
       );
     case "sofa":
+    case "waiting-sofa":
       return (
-        <g onMouseDown={onMouseDown} onContextMenu={onContextMenu} style={{ cursor: "move" }}>
-          <rect x={f.x} y={f.y} width={f.w} height={f.h} rx={f.radius} {...common} />
-          {[0, 1, 2].map(i => (
-            <rect key={i} x={f.x + 6 + i * ((f.w - 18) / 3 + 3)} y={f.y + 6} width={(f.w - 18) / 3} height={f.h - 12} rx={3} fill="none" stroke={f.stroke} strokeWidth={0.8} pointerEvents="none" />
-          ))}
+        <g {...handlers} style={{ cursor: "move" }}>
+          <rect x={f.x} y={f.y} width={f.w} height={f.h * 0.35} rx={f.radius} fill={f.fill} opacity={f.opacity} stroke={f.stroke} strokeWidth={1.2} />
+          <rect x={f.x + 4} y={f.y + f.h * 0.32} width={f.w - 8} height={f.h * 0.6} rx={Math.max(2, f.radius - 2)} fill={f.fill} opacity={Math.min(1, f.opacity + 0.05)} stroke={f.stroke} strokeWidth={1.2} pointerEvents="none" />
+          {[0, 1, 2].map(i => {
+            const cw = (f.w - 16) / 3;
+            return <rect key={i} x={f.x + 6 + i * (cw + 2)} y={f.y + f.h * 0.38} width={cw} height={f.h * 0.5} rx={4} fill="white" opacity={0.18} stroke={f.stroke} strokeWidth={0.6} pointerEvents="none" />;
+          })}
+          <rect x={f.x - 3} y={f.y + f.h * 0.3} width={6} height={f.h * 0.65} rx={3} fill={f.stroke} opacity={0.35} pointerEvents="none" />
+          <rect x={f.x + f.w - 3} y={f.y + f.h * 0.3} width={6} height={f.h * 0.65} rx={3} fill={f.stroke} opacity={0.35} pointerEvents="none" />
         </g>
       );
     case "salon-chair":
       return (
-        <g onMouseDown={onMouseDown} onContextMenu={onContextMenu} style={{ cursor: "move" }}>
-          {/* base */}
-          <rect x={f.x} y={f.y + f.h * 0.25} width={f.w} height={f.h * 0.55} rx={f.radius} fill={f.fill} stroke={f.stroke} strokeWidth={1.5} opacity={f.opacity} />
-          {/* headrest */}
-          <rect x={f.x + f.w * 0.2} y={f.y} width={f.w * 0.6} height={f.h * 0.28} rx={6} fill={f.fill} stroke={f.stroke} strokeWidth={1.2} pointerEvents="none" />
-          {/* armrests */}
-          <rect x={f.x - 4} y={f.y + f.h * 0.35} width="6" height={f.h * 0.4} rx={2} fill={f.stroke} opacity={0.7} pointerEvents="none" />
-          <rect x={f.x + f.w - 2} y={f.y + f.h * 0.35} width="6" height={f.h * 0.4} rx={2} fill={f.stroke} opacity={0.7} pointerEvents="none" />
-          {/* footrest */}
-          <rect x={f.x + f.w * 0.25} y={f.y + f.h * 0.82} width={f.w * 0.5} height={f.h * 0.18} rx={4} fill={f.fill} stroke={f.stroke} strokeWidth={1} opacity={0.85} pointerEvents="none" />
+        <g {...handlers} style={{ cursor: "move" }}>
+          <ellipse cx={cx} cy={f.y + f.h * 0.94} rx={f.w * 0.28} ry={f.h * 0.06} fill={f.stroke} opacity={0.35} pointerEvents="none" />
+          <ellipse cx={cx} cy={f.y + f.h * 0.85} rx={f.w * 0.42} ry={f.h * 0.06} fill={f.stroke} opacity={0.85} pointerEvents="none" />
+          <line x1={cx} y1={f.y + f.h * 0.7} x2={cx} y2={f.y + f.h * 0.85} stroke={f.stroke} strokeWidth={3} opacity={0.7} pointerEvents="none" />
+          <rect x={f.x + 2} y={f.y + f.h * 0.5} width={f.w - 4} height={f.h * 0.22} rx={6} fill={f.fill} stroke={f.stroke} strokeWidth={1.4} opacity={f.opacity} />
+          <rect x={f.x + f.w * 0.1} y={f.y + f.h * 0.05} width={f.w * 0.8} height={f.h * 0.5} rx={f.w * 0.2} fill={f.fill} stroke={f.stroke} strokeWidth={1.4} opacity={f.opacity} pointerEvents="none" />
+          <rect x={f.x + f.w * 0.25} y={f.y + f.h * 0.08} width={f.w * 0.5} height={f.h * 0.13} rx={6} fill="white" opacity={0.18} pointerEvents="none" />
+          <rect x={f.x - 3} y={f.y + f.h * 0.45} width={6} height={f.h * 0.22} rx={3} fill={f.stroke} opacity={0.55} pointerEvents="none" />
+          <rect x={f.x + f.w - 3} y={f.y + f.h * 0.45} width={6} height={f.h * 0.22} rx={3} fill={f.stroke} opacity={0.55} pointerEvents="none" />
+        </g>
+      );
+    case "shampoo-chair":
+      return (
+        <g {...handlers} style={{ cursor: "move" }}>
+          <ellipse cx={cx} cy={f.y + f.h * 0.14} rx={f.w * 0.42} ry={f.h * 0.1} fill="#E6EEF3" stroke={f.stroke} strokeWidth={1.4} opacity={f.opacity} />
+          <ellipse cx={cx} cy={f.y + f.h * 0.13} rx={f.w * 0.3} ry={f.h * 0.06} fill="white" opacity={0.6} pointerEvents="none" />
+          <rect x={cx - 2} y={f.y - 4} width={4} height={10} rx={1.5} fill={f.stroke} pointerEvents="none" />
+          <rect x={f.x + f.w * 0.3} y={f.y + f.h * 0.22} width={f.w * 0.4} height={f.h * 0.08} rx={4} fill={f.stroke} opacity={0.5} pointerEvents="none" />
+          <rect x={f.x + 4} y={f.y + f.h * 0.32} width={f.w - 8} height={f.h * 0.55} rx={f.radius} fill={f.fill} stroke={f.stroke} strokeWidth={1.4} opacity={f.opacity} />
+          <line x1={f.x + 8} y1={f.y + f.h * 0.6} x2={f.x + f.w - 8} y2={f.y + f.h * 0.6} stroke={f.stroke} strokeWidth={0.8} opacity={0.4} pointerEvents="none" />
+          <rect x={f.x + f.w * 0.2} y={f.y + f.h * 0.88} width={f.w * 0.6} height={f.h * 0.1} rx={4} fill={f.stroke} opacity={0.55} pointerEvents="none" />
         </g>
       );
     case "massage-bed":
       return (
-        <g onMouseDown={onMouseDown} onContextMenu={onContextMenu} style={{ cursor: "move" }}>
+        <g {...handlers} style={{ cursor: "move" }}>
           <rect x={f.x} y={f.y} width={f.w} height={f.h} rx={f.radius} {...common} />
-          {/* face cradle */}
-          <circle cx={f.x + 22} cy={f.y + f.h / 2} r={Math.min(14, f.h / 3)} fill="white" opacity={0.6} stroke={f.stroke} strokeWidth={1} pointerEvents="none" />
-          {/* divider */}
+          <circle cx={f.x + 22} cy={cy} r={Math.min(14, f.h / 3)} fill="white" opacity={0.6} stroke={f.stroke} strokeWidth={1} pointerEvents="none" />
           <line x1={f.x + f.w * 0.45} y1={f.y + 6} x2={f.x + f.w * 0.45} y2={f.y + f.h - 6} stroke={f.stroke} strokeWidth={0.8} opacity={0.5} pointerEvents="none" />
-          {/* towel */}
           <rect x={f.x + f.w * 0.55} y={f.y + 6} width={f.w * 0.4} height={f.h - 12} rx={4} fill="white" opacity={0.5} pointerEvents="none" />
         </g>
       );
     case "cash-counter":
       return (
-        <g onMouseDown={onMouseDown} onContextMenu={onContextMenu} style={{ cursor: "move" }}>
+        <g {...handlers} style={{ cursor: "move" }}>
           <rect x={f.x} y={f.y} width={f.w} height={f.h} rx={f.radius} {...common} />
-          {/* counter top */}
           <rect x={f.x + 4} y={f.y + 4} width={f.w - 8} height={f.h * 0.35} rx={2} fill="white" opacity={0.5} stroke={f.stroke} strokeWidth={0.8} pointerEvents="none" />
-          {/* register */}
           <rect x={f.x + f.w * 0.65} y={f.y + 8} width={f.w * 0.25} height={f.h * 0.35} rx={2} fill={f.stroke} opacity={0.85} pointerEvents="none" />
-          <text x={f.x + f.w / 2} y={f.y + f.h * 0.78} textAnchor="middle" fontSize="9" fill={f.stroke} fontWeight="600" pointerEvents="none">CASH</text>
+          <text x={cx} y={f.y + f.h * 0.78} textAnchor="middle" fontSize="9" fill={f.stroke} fontWeight="600" pointerEvents="none">CASH</text>
+        </g>
+      );
+    case "plant": {
+      const r = Math.min(f.w, f.h) / 2;
+      return (
+        <g {...handlers} style={{ cursor: "move" }}>
+          <path d={`M ${cx - r * 0.55} ${f.y + f.h * 0.7} L ${cx - r * 0.45} ${f.y + f.h} L ${cx + r * 0.45} ${f.y + f.h} L ${cx + r * 0.55} ${f.y + f.h * 0.7} Z`}
+            fill="#A0612A" stroke={f.stroke} strokeWidth={1} opacity={f.opacity} />
+          <circle cx={cx} cy={f.y + f.h * 0.35} r={r * 0.7} fill={f.fill} stroke={f.stroke} strokeWidth={1.2} opacity={f.opacity} />
+          <circle cx={cx - r * 0.45} cy={f.y + f.h * 0.45} r={r * 0.5} fill={f.fill} stroke={f.stroke} strokeWidth={1} opacity={f.opacity * 0.9} pointerEvents="none" />
+          <circle cx={cx + r * 0.45} cy={f.y + f.h * 0.45} r={r * 0.5} fill={f.fill} stroke={f.stroke} strokeWidth={1} opacity={f.opacity * 0.9} pointerEvents="none" />
+          <circle cx={cx} cy={f.y + f.h * 0.2} r={r * 0.35} fill={f.fill} stroke={f.stroke} strokeWidth={1} opacity={f.opacity * 0.85} pointerEvents="none" />
+          <ellipse cx={cx - r * 0.2} cy={f.y + f.h * 0.28} rx={r * 0.18} ry={r * 0.1} fill="white" opacity={0.3} pointerEvents="none" />
+        </g>
+      );
+    }
+    case "chair":
+      return (
+        <g {...handlers} style={{ cursor: "move" }}>
+          <rect x={f.x} y={f.y + f.h * 0.18} width={f.w} height={f.h * 0.82} rx={f.radius} fill={f.fill} stroke={f.stroke} strokeWidth={1.4} opacity={f.opacity} />
+          <rect x={f.x} y={f.y} width={f.w} height={f.h * 0.22} rx={3} fill={f.stroke} opacity={0.65} pointerEvents="none" />
         </g>
       );
     case "table":
     case "lamp":
-    case "plant":
     case "toilet":
       return (
-        <g onMouseDown={onMouseDown} onContextMenu={onContextMenu} style={{ cursor: "move" }}>
-          <ellipse cx={f.x + f.w / 2} cy={f.y + f.h / 2} rx={f.w / 2} ry={f.h / 2} {...common} />
-          {f.type === "plant" && <circle cx={f.x + f.w / 2} cy={f.y + f.h / 2} r={Math.min(f.w, f.h) / 4} fill={f.stroke} opacity={0.4} pointerEvents="none" />}
-          {f.type === "lamp" && <circle cx={f.x + f.w / 2} cy={f.y + f.h / 2} r={Math.min(f.w, f.h) / 4} fill="white" opacity={0.6} pointerEvents="none" />}
+        <g {...handlers} style={{ cursor: "move" }}>
+          <ellipse cx={cx} cy={cy} rx={f.w / 2} ry={f.h / 2} {...common} />
+          {f.type === "lamp" && <circle cx={cx} cy={cy} r={Math.min(f.w, f.h) / 4} fill="white" opacity={0.6} pointerEvents="none" />}
           {f.type === "toilet" && <rect x={f.x + 4} y={f.y} width={f.w - 8} height={14} rx={4} fill={f.fill} stroke={f.stroke} strokeWidth={0.8} pointerEvents="none" />}
         </g>
       );
     case "bathtub":
       return (
-        <g onMouseDown={onMouseDown} onContextMenu={onContextMenu} style={{ cursor: "move" }}>
+        <g {...handlers} style={{ cursor: "move" }}>
           <rect x={f.x} y={f.y} width={f.w} height={f.h} rx={f.radius} {...common} />
           <rect x={f.x + 6} y={f.y + 6} width={f.w - 12} height={f.h - 12} rx={f.radius - 4} fill="white" opacity={0.6} stroke={f.stroke} strokeWidth={0.8} pointerEvents="none" />
         </g>
       );
     case "dining-rect":
     case "dining-square":
-      return <DiningTable f={f} round={false} onMouseDown={onMouseDown} onContextMenu={onContextMenu} />;
+      return <DiningTable f={f} round={false} {...handlers} />;
     case "dining-round":
-      return <DiningTable f={f} round={true} onMouseDown={onMouseDown} onContextMenu={onContextMenu} />;
+      return <DiningTable f={f} round={true} {...handlers} />;
     case "booth":
-      return <BoothTable f={f} onMouseDown={onMouseDown} onContextMenu={onContextMenu} />;
+      return <BoothTable f={f} {...handlers} />;
     default:
       return <rect x={f.x} y={f.y} width={f.w} height={f.h} rx={f.radius} {...common} />;
   }

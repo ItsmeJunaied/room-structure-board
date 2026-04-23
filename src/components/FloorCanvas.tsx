@@ -440,7 +440,7 @@ export function FloorCanvas(p: Props) {
       })}
 
       {/* Furniture chrome (single primary selection) */}
-      {p.selection?.kind === "furniture" && !locked.has(p.selection.id) && (() => {
+      {!p.readOnly && p.selection?.kind === "furniture" && !locked.has(p.selection.id) && (() => {
         const sel = p.furniture.find(f => f.id === p.selection!.id);
         if (!sel) return null;
         const cx = sel.x + sel.w / 2, cy = sel.y + sel.h / 2;
@@ -472,7 +472,7 @@ export function FloorCanvas(p: Props) {
       })()}
 
       {/* Room chrome */}
-      {p.selection?.kind === "room" && !locked.has(p.selection.id) && (() => {
+      {!p.readOnly && p.selection?.kind === "room" && !locked.has(p.selection.id) && (() => {
         const r = p.rooms.find(x => x.id === p.selection!.id);
         if (!r) return null;
         const cx = r.x + r.w / 2, cy = r.y + r.h / 2;

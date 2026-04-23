@@ -830,13 +830,15 @@ function Index() {
                     {[...state.furniture].reverse().map(f => {
                       const overlaps = findOverlapping(f.id);
                       return (
-                        <LayerRow key={f.id} active={selection?.kind==="furniture" && selection.id===f.id}
+                        <LayerRow key={f.id} id={f.id} active={selection?.kind==="furniture" && selection.id===f.id}
                           locked={lockedSet.has(f.id)} color={f.fill}
                           label={f.name + (f.tableNo ? ` #${f.tableNo}` : "")}
                           icon="furniture"
                           orderable={f.orderable}
                           onToggleOrderable={() => toggleOrderable(f.id)}
                           overlapCount={overlaps.length}
+                          draggable
+                          onReorder={reorderLayer}
                           onClick={() => handleSelect({ kind: "furniture", id: f.id })} />
                       );
                     })}

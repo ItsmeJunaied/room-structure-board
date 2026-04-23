@@ -34,6 +34,7 @@ const FLOOR_PALETTE: { type: FurnitureType; icon: typeof Square; group: string }
   { type: "sink", icon: Square, group: "Kitchen" },
   { type: "toilet", icon: Square, group: "Bath" },
   { type: "bathtub", icon: Bath, group: "Bath" },
+  { type: "door-decor", icon: DoorOpen, group: "Decor" },
   { type: "mirror", icon: Square, group: "Decor" },
   { type: "lamp", icon: Lamp, group: "Decor" },
   { type: "plant", icon: Flower2, group: "Decor" },

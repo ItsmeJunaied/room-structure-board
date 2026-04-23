@@ -172,6 +172,11 @@ export function FloorCanvas(p: Props) {
         }
         case "drawRoom": setDrag({ ...drag, x2: x, y2: y }); break;
         case "drawPart": setDrag({ ...drag, x2: x, y2: y }); break;
+        case "marquee": {
+          const dx = Math.abs(x - drag.x1), dy = Math.abs(y - drag.y1);
+          setDrag({ ...drag, x2: x, y2: y, moved: drag.moved || dx > 4 || dy > 4 });
+          break;
+        }
       }
     };
     const onUp = (e: MouseEvent) => {

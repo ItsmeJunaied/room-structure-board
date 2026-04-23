@@ -34,6 +34,7 @@ const FLOOR_PALETTE: { type: FurnitureType; icon: typeof Square; group: string }
   { type: "sink", icon: Square, group: "Kitchen" },
   { type: "toilet", icon: Square, group: "Bath" },
   { type: "bathtub", icon: Bath, group: "Bath" },
+  { type: "door-decor", icon: DoorOpen, group: "Decor" },
   { type: "mirror", icon: Square, group: "Decor" },
   { type: "lamp", icon: Lamp, group: "Decor" },
   { type: "plant", icon: Flower2, group: "Decor" },
@@ -136,24 +137,45 @@ function Index() {
   const updateF = (id: string, patch: Partial<Furniture>) => {
     setState(s => {
       const groupId = Object.keys(s.groups).find(gid => s.groups[gid].includes(id));
+      const reparent = (f: Furniture): Furniture => {
+        if (patch.x === undefined && patch.y === undefined) return f;
+        const fx = (patch.x ?? f.x) + f.w / 2;
+        const fy = (patch.y ?? f.y) + f.h / 2;
+        const r = s.rooms.find(rr => fx >= rr.x && fx <= rr.x + rr.w && fy >= rr.y && fy <= rr.y + rr.h);
+        return { ...f, roomId: r?.id };
+      };
       if (groupId && (patch.x !== undefined || patch.y !== undefined)) {
         const cur = s.furniture.find(f => f.id === id);
         if (cur) {
           const dx = patch.x !== undefined ? patch.x - cur.x : 0;
           const dy = patch.y !== undefined ? patch.y - cur.y : 0;
           const ids = s.groups[groupId];
-          return { ...s, furniture: s.furniture.map(f => ids.includes(f.id) ? { ...f, x: f.x + dx, y: f.y + dy } : f) };
+          return { ...s, furniture: s.furniture.map(f => ids.includes(f.id) ? reparent({ ...f, x: f.x + dx, y: f.y + dy }) : f) };
         }
       }
-      return { ...s, furniture: s.furniture.map(f => f.id === id ? { ...f, ...patch } : f) };
+      return { ...s, furniture: s.furniture.map(f => f.id === id ? reparent({ ...f, ...patch }) : f) };
     });
   };
   const updateR = (id: string, patch: Partial<Room>) =>
-    setState(s => ({ ...s, rooms: s.rooms.map(r => r.id === id ? { ...r, ...patch } : r) }));
+    setState(s => {
+      const cur = s.rooms.find(r => r.id === id);
+      const dx = cur && patch.x !== undefined ? patch.x - cur.x : 0;
+      const dy = cur && patch.y !== undefined ? patch.y - cur.y : 0;
+      const rooms = s.rooms.map(r => r.id === id ? { ...r, ...patch } : r);
+      // Move all furniture attached to this room by the same delta
+      const furniture = (dx || dy)
+        ? s.furniture.map(f => f.roomId === id ? { ...f, x: f.x + dx, y: f.y + dy } : f)
+        : s.furniture;
+      return { ...s, rooms, furniture };
+    });
   const updateD = (id: string, patch: Partial<Door>) =>
     setState(s => ({ ...s, doors: s.doors.map(d => d.id === id ? { ...d, ...patch } : d) }));
   const updateP = (id: string, patch: Partial<Partition>) =>
     setState(s => ({ ...s, partitions: s.partitions.map(x => x.id === id ? { ...x, ...patch } : x) }));
+
+  /** Find the room whose bounding box contains the given point. */
+  const roomAt = (px: number, py: number): Room | undefined =>
+    state.rooms.find(r => px >= r.x && px <= r.x + r.w && py >= r.y && py <= r.y + r.h);
 
   const addFurniture = (type: FurnitureType) => {
     const target = state.rooms[0];
@@ -164,6 +186,7 @@ function Index() {
       ...def, id: uid(),
       x: cx - def.w / 2, y: cy - def.h / 2,
       orderable: ORDERABLE_BY_DEFAULT.includes(type),
+      roomId: target?.id,
     };
     // Auto-pair: salon chair gets a mirror placed in front of it
     const extras: Furniture[] = [];
@@ -174,6 +197,7 @@ function Index() {
         x: item.x + (item.w - mdef.w) / 2,
         y: item.y - mdef.h - 16,
         orderable: false,
+        roomId: target?.id,
       });
     }
     setState(s => ({ ...s, furniture: [...s.furniture, item, ...extras] }));
@@ -388,6 +412,37 @@ function Index() {
   };
 
   const onContextMenu = (e: ContextMenuEvent) => setCtxMenu({ x: e.x, y: e.y });
+
+  /** Marquee select: pick all rooms whose center lies inside the marquee box. */
+  const onMarquee = (box: { x: number; y: number; w: number; h: number }, additive: boolean) => {
+    const inside = (rx: number, ry: number) =>
+      rx >= box.x && rx <= box.x + box.w && ry >= box.y && ry <= box.y + box.h;
+    const hits = state.rooms.filter(r => inside(r.x + r.w / 2, r.y + r.h / 2)).map(r => r.id);
+    if (hits.length === 0 && !additive) {
+      setSelection(null); setMultiSelection([]); return;
+    }
+    setMultiSelection(prev => {
+      const merged = additive ? Array.from(new Set([...prev, ...hits])) : hits;
+      return merged;
+    });
+    if (hits.length > 0) setSelection({ kind: "room", id: hits[hits.length - 1] });
+  };
+
+  /** Reorder a furniture layer by drag-and-drop in the Layers panel. */
+  const reorderLayer = (fromId: string, toId: string) => {
+    if (fromId === toId) return;
+    setState(s => {
+      // The layers panel renders furniture in reverse order (top item first).
+      // We translate that to underlying array indices.
+      const arr = [...s.furniture];
+      const fromIdx = arr.findIndex(f => f.id === fromId);
+      const toIdx = arr.findIndex(f => f.id === toId);
+      if (fromIdx < 0 || toIdx < 0) return s;
+      const [item] = arr.splice(fromIdx, 1);
+      arr.splice(toIdx, 0, item);
+      return { ...s, furniture: arr };
+    });
+  };
 
   const groups = Array.from(new Set(PALETTE.map(p => p.group)));
   const selFurn = selection?.kind === "furniture" ? state.furniture.find(f => f.id === selection.id) : null;
@@ -656,6 +711,7 @@ function Index() {
                   onAddPartition={(pt) => setState(s => ({ ...s, partitions: [...s.partitions, pt] }))}
                   onSetTool={setTool}
                   onContextMenu={onContextMenu}
+                  onMarquee={onMarquee}
                 />
               </div>
             </div>
@@ -774,13 +830,15 @@ function Index() {
                     {[...state.furniture].reverse().map(f => {
                       const overlaps = findOverlapping(f.id);
                       return (
-                        <LayerRow key={f.id} active={selection?.kind==="furniture" && selection.id===f.id}
+                        <LayerRow key={f.id} id={f.id} active={selection?.kind==="furniture" && selection.id===f.id}
                           locked={lockedSet.has(f.id)} color={f.fill}
                           label={f.name + (f.tableNo ? ` #${f.tableNo}` : "")}
                           icon="furniture"
                           orderable={f.orderable}
                           onToggleOrderable={() => toggleOrderable(f.id)}
                           overlapCount={overlaps.length}
+                          draggable
+                          onReorder={reorderLayer}
                           onClick={() => handleSelect({ kind: "furniture", id: f.id })} />
                       );
                     })}
@@ -837,15 +895,29 @@ function LayerGroup({ label, count, children }: { label: string; count: number; 
 }
 
 function LayerRow({
-  active, color, label, onClick, locked, icon, orderable, onToggleOrderable, overlapCount,
+  id, active, color, label, onClick, locked, icon, orderable, onToggleOrderable, overlapCount, draggable, onReorder,
 }: {
+  id?: string;
   active: boolean; color: string; label: string; onClick: () => void;
   locked?: boolean; icon: "room" | "wall" | "door" | "furniture";
   orderable?: boolean; onToggleOrderable?: () => void; overlapCount?: number;
+  draggable?: boolean; onReorder?: (fromId: string, toId: string) => void;
 }) {
+  const [dragOver, setDragOver] = useState(false);
   return (
-    <li>
-      <div className={`group flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs ${active ? "bg-accent text-accent-foreground" : "hover:bg-secondary"}`}>
+    <li
+      draggable={!!draggable && !!id}
+      onDragStart={(e) => { if (id) { e.dataTransfer.setData("text/layer-id", id); e.dataTransfer.effectAllowed = "move"; } }}
+      onDragOver={(e) => { if (draggable && id) { e.preventDefault(); e.dataTransfer.dropEffect = "move"; setDragOver(true); } }}
+      onDragLeave={() => setDragOver(false)}
+      onDrop={(e) => {
+        setDragOver(false);
+        if (!draggable || !id || !onReorder) return;
+        const from = e.dataTransfer.getData("text/layer-id");
+        if (from && from !== id) onReorder(from, id);
+      }}
+    >
+      <div className={`group flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs ${active ? "bg-accent text-accent-foreground" : "hover:bg-secondary"} ${dragOver ? "ring-2 ring-primary" : ""}`}>
         <button onClick={onClick} className="flex flex-1 items-center gap-2 truncate text-left">
           <span className="h-2.5 w-2.5 rounded-sm border border-border shrink-0" style={{ background: color }} />
           <span className="truncate">{label}</span>

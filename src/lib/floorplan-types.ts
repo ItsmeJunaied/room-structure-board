@@ -1,6 +1,7 @@
 export type FurnitureType =
   | "bed" | "sofa" | "chair" | "table" | "cupboard"
   | "wardrobe" | "lamp" | "plant" | "mirror" | "pillow" | "rug" | "tv" | "sink" | "toilet" | "bathtub"
+  | "door-decor"
   | "salon-chair" | "massage-bed" | "cash-counter" | "shampoo-chair" | "waiting-sofa"
   | "dining-rect" | "dining-round" | "dining-square" | "booth";
 
@@ -27,6 +28,8 @@ export interface Furniture {
   orderable?: boolean;
   /** Manually mark as reserved/booked in POS */
   reserved?: boolean;
+  /** ID of the room this furniture is attached to. Moves with the room. */
+  roomId?: string;
 }
 
 export type RoomShape = "rect" | "circle" | "l-shape";
@@ -80,7 +83,8 @@ export const ORDERABLE_BY_DEFAULT: FurnitureType[] = [
 export const DEFAULTS: Record<FurnitureType, Omit<Furniture, "id" | "x" | "y">> = {
   bed:      { type: "bed",      name: "Bed",       w: 160, h: 120, rotation: 0, fill: "#B7D9C0", stroke: "#1B1A1A", opacity: 0.85, radius: 8 },
   sofa:     { type: "sofa",     name: "Sofa",      w: 140, h: 56,  rotation: 0, fill: "#EDEDE8", stroke: "#1B1A1A", opacity: 1,    radius: 8 },
-  chair:    { type: "chair",    name: "Chair",     w: 40,  h: 40,  rotation: 0, fill: "#EDEDE8", stroke: "#1B1A1A", opacity: 1,    radius: 6 },
+  chair:    { type: "chair",    name: "Chair",     w: 44,  h: 44,  rotation: 0, fill: "#F4A6A0", stroke: "#7A2E2A", opacity: 1,    radius: 8 },
+  "door-decor": { type: "door-decor", name: "Door", w: 60, h: 14, rotation: 0, fill: "#A0612A", stroke: "#3D2412", opacity: 1, radius: 2 },
   table:    { type: "table",    name: "Table",     w: 80,  h: 80,  rotation: 0, fill: "#F5F1EA", stroke: "#1B1A1A", opacity: 1,    radius: 40 },
   cupboard: { type: "cupboard", name: "Cupboard",  w: 140, h: 36,  rotation: 0, fill: "#F2F2EE", stroke: "#1B1A1A", opacity: 1,    radius: 2 },
   wardrobe: { type: "wardrobe", name: "Wardrobe",  w: 44,  h: 120, rotation: 0, fill: "#F2F2EE", stroke: "#1B1A1A", opacity: 1,    radius: 2 },

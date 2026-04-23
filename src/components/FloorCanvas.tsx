@@ -199,6 +199,12 @@ export function FloorCanvas(p: Props) {
           p.onSelect({ kind: "partition", id: part.id });
           p.onSetTool("select");
         }
+      } else if (drag.kind === "marquee") {
+        if (drag.moved) {
+          const x = Math.min(drag.x1, drag.x2), y = Math.min(drag.y1, drag.y2);
+          const w = Math.abs(drag.x2 - drag.x1), h = Math.abs(drag.y2 - drag.y1);
+          if (w > 4 && h > 4) p.onMarquee?.({ x, y, w, h }, drag.additive);
+        }
       }
       setDrag(null);
     };
@@ -235,7 +241,9 @@ export function FloorCanvas(p: Props) {
       p.onSelect({ kind: "door", id: d.id });
       p.onSetTool("select");
     } else {
-      p.onSelect(null);
+      // Marquee select on empty canvas
+      setDrag({ kind: "marquee", x1: x, y1: y, x2: x, y2: y, additive: e.shiftKey, moved: false });
+      if (!e.shiftKey) p.onSelect(null);
     }
   };
 

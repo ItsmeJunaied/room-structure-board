@@ -1,5 +1,8 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useState, useEffect, useRef } from "react";
+import { getCurrentUser, logout } from "@/lib/auth";
+import { loadBoards, saveBoards } from "@/lib/storage";
+import { LogOut, Save, ArrowRight } from "lucide-react";
 import {
   Home, Sparkles, Monitor, Tablet, Smartphone, Eye, Moon, Sun, Download,
   Trash2, Copy, MousePointer2, Search, ChevronDown,

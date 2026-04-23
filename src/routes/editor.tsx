@@ -711,6 +711,7 @@ function Index() {
                   onAddPartition={(pt) => setState(s => ({ ...s, partitions: [...s.partitions, pt] }))}
                   onSetTool={setTool}
                   onContextMenu={onContextMenu}
+                  onMarquee={onMarquee}
                 />
               </div>
             </div>

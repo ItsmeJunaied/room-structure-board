@@ -547,6 +547,54 @@ function Index() {
           </div>
         </header>
 
+        {/* Build toolbar — always visible: Room / Wall / Door + room shape + room presets */}
+        <div className="flex flex-wrap items-center gap-3 border-b border-border bg-card/60 px-4 py-2">
+          <div className="flex items-center gap-1">
+            <span className="mr-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Build</span>
+            <button onClick={() => setTool("room")}
+              className={`flex items-center gap-1 rounded-md border px-2.5 py-1 text-xs font-medium transition ${tool==="room" ? "border-primary bg-primary text-primary-foreground" : "border-border hover:bg-secondary"}`}>
+              <Square className="h-3.5 w-3.5" /> Room
+            </button>
+            <button onClick={() => setTool("partition")}
+              className={`flex items-center gap-1 rounded-md border px-2.5 py-1 text-xs font-medium transition ${tool==="partition" ? "border-primary bg-primary text-primary-foreground" : "border-border hover:bg-secondary"}`}>
+              <Minus className="h-3.5 w-3.5" /> Wall
+            </button>
+            <button onClick={() => setTool("door")}
+              className={`flex items-center gap-1 rounded-md border px-2.5 py-1 text-xs font-medium transition ${tool==="door" ? "border-primary bg-primary text-primary-foreground" : "border-border hover:bg-secondary"}`}>
+              <DoorOpen className="h-3.5 w-3.5" /> Door
+            </button>
+          </div>
+
+          <div className="h-5 w-px bg-border" />
+
+          <div className="flex items-center gap-1">
+            <span className="mr-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Shape</span>
+            {ROOM_SHAPES.map(s => {
+              const Icon = s.value === "circle" ? Circle : s.value === "l-shape" ? Shapes : Square;
+              return (
+                <button key={s.value} onClick={() => setRoomShape(s.value)}
+                  title={s.label}
+                  className={`flex items-center gap-1 rounded-md border px-2 py-1 text-[11px] ${roomShape===s.value ? "border-primary bg-accent/40" : "border-border hover:bg-secondary"}`}>
+                  <Icon className="h-3.5 w-3.5" /> {s.label}
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="h-5 w-px bg-border" />
+
+          <div className="flex items-center gap-1 overflow-x-auto">
+            <span className="mr-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Type</span>
+            {ROOM_PRESETS.map((p, i) => (
+              <button key={p.name} onClick={() => setRoomPresetIdx(i)}
+                className={`flex items-center gap-1.5 whitespace-nowrap rounded-md border px-2 py-1 text-[11px] ${roomPresetIdx===i ? "border-primary bg-accent/30" : "border-border hover:bg-secondary"}`}>
+                <span className="h-3 w-3 rounded-sm" style={{ background: p.fill }} />
+                {p.name}
+              </button>
+            ))}
+          </div>
+        </div>
+
         <div className="flex flex-1 overflow-hidden">
           {/* LEFT: Furniture palette — full sidebar scroll, no inner scroll */}
           <aside className="flex w-72 flex-col overflow-y-auto border-r border-border">

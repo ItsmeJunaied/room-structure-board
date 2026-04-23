@@ -895,15 +895,29 @@ function LayerGroup({ label, count, children }: { label: string; count: number; 
 }
 
 function LayerRow({
-  active, color, label, onClick, locked, icon, orderable, onToggleOrderable, overlapCount,
+  id, active, color, label, onClick, locked, icon, orderable, onToggleOrderable, overlapCount, draggable, onReorder,
 }: {
+  id?: string;
   active: boolean; color: string; label: string; onClick: () => void;
   locked?: boolean; icon: "room" | "wall" | "door" | "furniture";
   orderable?: boolean; onToggleOrderable?: () => void; overlapCount?: number;
+  draggable?: boolean; onReorder?: (fromId: string, toId: string) => void;
 }) {
+  const [dragOver, setDragOver] = useState(false);
   return (
-    <li>
-      <div className={`group flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs ${active ? "bg-accent text-accent-foreground" : "hover:bg-secondary"}`}>
+    <li
+      draggable={!!draggable && !!id}
+      onDragStart={(e) => { if (id) { e.dataTransfer.setData("text/layer-id", id); e.dataTransfer.effectAllowed = "move"; } }}
+      onDragOver={(e) => { if (draggable && id) { e.preventDefault(); e.dataTransfer.dropEffect = "move"; setDragOver(true); } }}
+      onDragLeave={() => setDragOver(false)}
+      onDrop={(e) => {
+        setDragOver(false);
+        if (!draggable || !id || !onReorder) return;
+        const from = e.dataTransfer.getData("text/layer-id");
+        if (from && from !== id) onReorder(from, id);
+      }}
+    >
+      <div className={`group flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs ${active ? "bg-accent text-accent-foreground" : "hover:bg-secondary"} ${dragOver ? "ring-2 ring-primary" : ""}`}>
         <button onClick={onClick} className="flex flex-1 items-center gap-2 truncate text-left">
           <span className="h-2.5 w-2.5 rounded-sm border border-border shrink-0" style={{ background: color }} />
           <span className="truncate">{label}</span>

@@ -414,6 +414,9 @@ export function FloorCanvas(p: Props) {
         const isLocked = locked.has(f.id);
         const cx = f.x + f.w / 2;
         const cy = f.y + f.h / 2;
+        const label = p.furnitureLabel?.(f);
+        const status = p.furnitureStatus?.(f);
+        const showLbl = p.showLabels || !!label;
         return (
           <g key={f.id} transform={`rotate(${f.rotation} ${cx} ${cy})`}>
             <FurnitureShape f={f}
@@ -430,6 +433,8 @@ export function FloorCanvas(p: Props) {
                 const { x, y } = toSvg(e.clientX, e.clientY);
                 setDrag({ kind: "moveF", id: f.id, offX: x - f.x, offY: y - f.y });
               }}
+              onMouseEnter={() => p.onHoverFurniture?.(f)}
+              onMouseLeave={() => p.onHoverFurniture?.(null)}
               onContextMenu={(e) => {
                 e.preventDefault(); e.stopPropagation();
                 if (p.readOnly) return;
@@ -437,7 +442,22 @@ export function FloorCanvas(p: Props) {
                 p.onContextMenu?.({ x: e.clientX, y: e.clientY, target: { kind: "furniture", id: f.id } });
               }}
             />
-            {sel && (
+            {/* Label above the item */}
+            {showLbl && (
+              <g pointerEvents="none">
+                <rect x={cx - 30} y={f.y - 22} width={60} height={16} rx={8}
+                  fill="white" stroke="var(--border)" strokeWidth={0.8} opacity={0.95} />
+                <text x={cx} y={f.y - 11} textAnchor="middle" fontSize="10" fontWeight="600"
+                  fill="var(--foreground)">{label ?? f.name}</text>
+              </g>
+            )}
+            {/* Status dot for POS */}
+            {status && (
+              <circle cx={f.x + f.w - 6} cy={f.y + 6} r={5}
+                fill={status === "active" ? "oklch(0.62 0.16 152)" : status === "reserved" ? "oklch(0.7 0.18 60)" : "oklch(0.85 0.005 240)"}
+                stroke="white" strokeWidth={1.5} pointerEvents="none" />
+            )}
+            {sel && !showLbl && (
               <text x={cx} y={cy + 4} textAnchor="middle" fontSize="10" fill="oklch(0.3 0.05 152)" fontStyle="italic" pointerEvents="none">
                 {f.name}{isLocked ? " 🔒" : ""}
               </text>

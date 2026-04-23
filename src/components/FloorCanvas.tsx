@@ -13,14 +13,21 @@ interface Props {
   partitions: Partition[];
   furniture: Furniture[];
   selection: Selection;
-  multiSelection?: string[]; // furniture/room ids in additive selection
+  multiSelection?: string[];
   lockedIds?: Set<string>;
   tool: Tool;
   roomFill: string;
   roomShape: RoomShape;
   /** When true, all editing/dragging is disabled. Furniture click fires onPickFurniture. */
   readOnly?: boolean;
+  /** Always show furniture name labels above each item. */
+  showLabels?: boolean;
+  /** POS-style label override per furniture id (e.g. "Chair 1"). */
+  furnitureLabel?: (f: Furniture) => string | null;
+  /** POS status badge per furniture id. */
+  furnitureStatus?: (f: Furniture) => "idle" | "active" | "reserved" | null;
   onPickFurniture?: (f: Furniture) => void;
+  onHoverFurniture?: (f: Furniture | null) => void;
   onSelect: (s: Selection, additive?: boolean) => void;
   onUpdateFurniture: (id: string, patch: Partial<Furniture>) => void;
   onUpdateRoom: (id: string, patch: Partial<Room>) => void;

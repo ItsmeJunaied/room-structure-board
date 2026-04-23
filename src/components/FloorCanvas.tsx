@@ -411,6 +411,11 @@ export function FloorCanvas(p: Props) {
               onMouseDown={(e) => {
                 if (spaceDown) return;
                 e.stopPropagation();
+                if (p.readOnly) {
+                  p.onPickFurniture?.(f);
+                  p.onSelect({ kind: "furniture", id: f.id });
+                  return;
+                }
                 p.onSelect({ kind: "furniture", id: f.id }, e.shiftKey);
                 if (isLocked) return;
                 const { x, y } = toSvg(e.clientX, e.clientY);
@@ -418,6 +423,7 @@ export function FloorCanvas(p: Props) {
               }}
               onContextMenu={(e) => {
                 e.preventDefault(); e.stopPropagation();
+                if (p.readOnly) return;
                 p.onSelect({ kind: "furniture", id: f.id });
                 p.onContextMenu?.({ x: e.clientX, y: e.clientY, target: { kind: "furniture", id: f.id } });
               }}

@@ -659,7 +659,7 @@ function FurnitureShape({ f, onMouseDown, onContextMenu, onMouseEnter, onMouseLe
 }
 
 /** Restaurant dining table: rectangle/square/round with auto-placed chairs around it. */
-function DiningTable({ f, round, onMouseDown, onContextMenu }: { f: Furniture; round: boolean; onMouseDown: (e: React.MouseEvent) => void; onContextMenu?: (e: React.MouseEvent) => void }) {
+function DiningTable({ f, round, onMouseDown, onContextMenu, onMouseEnter, onMouseLeave }: ShapeProps & { round: boolean }) {
   const cx = f.x + f.w / 2;
   const cy = f.y + f.h / 2;
   const n = Math.max(0, Math.min(20, f.chairs ?? 0));
@@ -725,7 +725,7 @@ function DiningTable({ f, round, onMouseDown, onContextMenu }: { f: Furniture; r
         </g>
       ))}
       {/* Table */}
-      <g onMouseDown={onMouseDown} onContextMenu={onContextMenu} style={{ cursor: "move" }}>
+      <g onMouseDown={onMouseDown} onContextMenu={onContextMenu} onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave} style={{ cursor: "move" }}>
         {round ? (
           <ellipse cx={cx} cy={cy} rx={f.w / 2} ry={f.h / 2}
             fill={f.fill} stroke={f.stroke} strokeWidth={1.5} opacity={f.opacity} />
@@ -745,7 +745,7 @@ function DiningTable({ f, round, onMouseDown, onContextMenu }: { f: Furniture; r
 }
 
 /** Booth: rectangular table with bench seating on long sides. */
-function BoothTable({ f, onMouseDown, onContextMenu }: { f: Furniture; onMouseDown: (e: React.MouseEvent) => void; onContextMenu?: (e: React.MouseEvent) => void }) {
+function BoothTable({ f, onMouseDown, onContextMenu, onMouseEnter, onMouseLeave }: ShapeProps) {
   const cx = f.x + f.w / 2;
   const cy = f.y + f.h / 2;
   const benchH = 14;
@@ -757,7 +757,7 @@ function BoothTable({ f, onMouseDown, onContextMenu }: { f: Furniture; onMouseDo
         fill="#EDEDE8" stroke={f.stroke} strokeWidth={1} pointerEvents="none" />
       <rect x={f.x} y={f.y + f.h + 2} width={f.w} height={benchH} rx={4}
         fill="#EDEDE8" stroke={f.stroke} strokeWidth={1} pointerEvents="none" />
-      <g onMouseDown={onMouseDown} onContextMenu={onContextMenu} style={{ cursor: "move" }}>
+      <g onMouseDown={onMouseDown} onContextMenu={onContextMenu} onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave} style={{ cursor: "move" }}>
         <rect x={f.x} y={f.y} width={f.w} height={f.h} rx={f.radius}
           fill={f.fill} stroke={f.stroke} strokeWidth={1.5} opacity={f.opacity} />
         {f.tableNo && (

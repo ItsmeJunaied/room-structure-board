@@ -165,7 +165,18 @@ function Index() {
       x: cx - def.w / 2, y: cy - def.h / 2,
       orderable: ORDERABLE_BY_DEFAULT.includes(type),
     };
-    setState(s => ({ ...s, furniture: [...s.furniture, item] }));
+    // Auto-pair: salon chair gets a mirror placed in front of it
+    const extras: Furniture[] = [];
+    if (type === "salon-chair") {
+      const mdef = DEFAULTS.mirror;
+      extras.push({
+        ...mdef, id: uid(),
+        x: item.x + (item.w - mdef.w) / 2,
+        y: item.y - mdef.h - 16,
+        orderable: false,
+      });
+    }
+    setState(s => ({ ...s, furniture: [...s.furniture, item, ...extras] }));
     setSelection({ kind: "furniture", id: item.id });
     setTool("select");
   };

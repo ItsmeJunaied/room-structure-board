@@ -198,10 +198,14 @@ export function FloorCanvas(p: Props) {
   const onBgDown = (e: React.MouseEvent) => {
     const target = e.target as Element;
     const isBg = target === svgRef.current || target.id === "bg";
-    // Pan: space + drag (anywhere) or middle mouse
+    // Pan: space + drag (anywhere) or middle mouse — allowed even in readOnly
     if ((spaceDown && e.button === 0) || e.button === 1) {
       e.preventDefault();
       setDrag({ kind: "pan", sx: e.clientX, sy: e.clientY, ovx: view.x, ovy: view.y });
+      return;
+    }
+    if (p.readOnly) {
+      if (isBg) p.onSelect(null);
       return;
     }
     if (!isBg) return;

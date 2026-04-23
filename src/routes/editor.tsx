@@ -1,18 +1,19 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { getCurrentUser, logout } from "@/lib/auth";
 import { loadBoards, saveBoards } from "@/lib/storage";
-import { LogOut, Save, ArrowRight } from "lucide-react";
 import {
-  Home, Sparkles, Monitor, Tablet, Smartphone, Eye, Moon, Sun, Download,
-  Trash2, Copy, MousePointer2, Search, ChevronDown,
+  Home, Sparkles, Monitor, Tablet, Smartphone, Moon, Sun, Download,
+  Trash2, Copy, MousePointer2, Search, ChevronDown, Bell,
   Square, DoorOpen, Sofa, Bed, Armchair, Lamp, Flower2, Tv, Bath, Wind, Layers,
-  Circle, Minus, Shapes, Lock, Unlock, Group, Ungroup, Scissors, Clipboard, ArrowUp, ArrowDown,
+  Circle, Minus, Shapes, Lock, Unlock, Group, Ungroup, Scissors, Clipboard,
+  ArrowUp, ArrowDown, ChevronsUp, ChevronsDown,
   Scissors as ScissorsIcon, Coins, UtensilsCrossed, CircleDot,
+  Save, ArrowRight, LogOut, Eye, EyeOff, Droplets, Users,
 } from "lucide-react";
 import { FloorCanvas, type ContextMenuEvent } from "@/components/FloorCanvas";
 import {
-  DEFAULTS, ROOM_PRESETS, ROOM_SHAPES,
+  DEFAULTS, ROOM_PRESETS, ROOM_SHAPES, ORDERABLE_BY_DEFAULT,
   type Furniture, type FurnitureType, type Room, type Door, type Partition, type Selection, type Tool, type RoomShape, type BoardKind,
 } from "@/lib/floorplan-types";
 
@@ -39,21 +40,25 @@ const FLOOR_PALETTE: { type: FurnitureType; icon: typeof Square; group: string }
 ];
 
 const SALON_PALETTE: { type: FurnitureType; icon: typeof Square; group: string }[] = [
-  { type: "salon-chair", icon: ScissorsIcon, group: "Salon" },
-  { type: "massage-bed", icon: Bed, group: "Salon" },
-  { type: "cash-counter", icon: Coins, group: "Salon" },
-  { type: "mirror", icon: Square, group: "Salon" },
-  { type: "plant", icon: Flower2, group: "Decor" },
+  { type: "salon-chair",   icon: ScissorsIcon, group: "Service" },
+  { type: "shampoo-chair", icon: Droplets,     group: "Service" },
+  { type: "massage-bed",   icon: Bed,          group: "Service" },
+  { type: "waiting-sofa",  icon: Sofa,         group: "Waiting" },
+  { type: "cash-counter",  icon: Coins,        group: "Front" },
+  { type: "mirror",        icon: Square,       group: "Decor" },
+  { type: "plant",         icon: Flower2,      group: "Decor" },
+  { type: "lamp",          icon: Lamp,         group: "Decor" },
 ];
 
 const RESTAURANT_PALETTE: { type: FurnitureType; icon: typeof Square; group: string }[] = [
-  { type: "dining-rect", icon: UtensilsCrossed, group: "Tables" },
-  { type: "dining-round", icon: CircleDot, group: "Tables" },
-  { type: "dining-square", icon: Square, group: "Tables" },
-  { type: "booth", icon: Sofa, group: "Tables" },
-  { type: "cash-counter", icon: Coins, group: "Service" },
-  { type: "plant", icon: Flower2, group: "Decor" },
-  { type: "lamp", icon: Lamp, group: "Decor" },
+  { type: "dining-rect",   icon: UtensilsCrossed, group: "Tables" },
+  { type: "dining-round",  icon: CircleDot,       group: "Tables" },
+  { type: "dining-square", icon: Square,          group: "Tables" },
+  { type: "booth",         icon: Sofa,            group: "Tables" },
+  { type: "waiting-sofa",  icon: Sofa,            group: "Waiting" },
+  { type: "cash-counter",  icon: Coins,           group: "Front" },
+  { type: "plant",         icon: Flower2,         group: "Decor" },
+  { type: "lamp",          icon: Lamp,            group: "Decor" },
 ];
 
 const BOARDS: { id: BoardKind; name: string }[] = [
@@ -67,7 +72,7 @@ interface BoardState {
   doors: Door[];
   partitions: Partition[];
   furniture: Furniture[];
-  groups: Record<string, string[]>; // groupId -> member ids
+  groups: Record<string, string[]>;
   locked: string[];
 }
 
@@ -77,12 +82,8 @@ function Index() {
   const navigate = useNavigate();
   const user = typeof window !== "undefined" ? getCurrentUser() : null;
 
-  // Auth gate
-  useEffect(() => {
-    if (!user) navigate({ to: "/login" });
-  }, [user, navigate]);
+  useEffect(() => { if (!user) navigate({ to: "/login" }); }, [user, navigate]);
 
-  // Default board based on role
   const defaultBoard: BoardKind =
     user?.role === "salon" ? "salon" : user?.role === "restaurant" ? "restaurant" : "floor";
 
@@ -95,8 +96,8 @@ function Index() {
   });
   const [savedAt, setSavedAt] = useState<number>(0);
   const [boardMenuOpen, setBoardMenuOpen] = useState(false);
+  const [noticeOpen, setNoticeOpen] = useState(false);
 
-  // Auto-save to localStorage
   useEffect(() => {
     if (!user) return;
     saveBoards(user.email, boards);
@@ -104,15 +105,17 @@ function Index() {
   }, [boards, user]);
 
   const [selection, setSelection] = useState<Selection>(null);
-  const [multiSelection, setMultiSelection] = useState<string[]>([]); // ids
+  const [multiSelection, setMultiSelection] = useState<string[]>([]);
   const [tool, setTool] = useState<Tool>("select");
   const [roomPresetIdx, setRoomPresetIdx] = useState(0);
   const [roomShape, setRoomShape] = useState<RoomShape>("rect");
   const [dark, setDark] = useState(false);
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number } | null>(null);
+  const [clipboard, setClipboard] = useState<{ kind: "furniture"; data: Furniture } | { kind: "room"; data: Room } | { kind: "partition"; data: Partition } | null>(null);
+  const [rightTab, setRightTab] = useState<"layers" | "props">("layers");
 
   const state = boards[board];
-  const lockedSet = new Set(state.locked);
+  const lockedSet = useMemo(() => new Set(state.locked), [state.locked]);
 
   const setState = (patch: Partial<BoardState> | ((s: BoardState) => BoardState)) => {
     setBoards(prev => {
@@ -123,42 +126,15 @@ function Index() {
 
   const PALETTE = board === "salon" ? SALON_PALETTE : board === "restaurant" ? RESTAURANT_PALETTE : FLOOR_PALETTE;
 
-  // Reset selection when switching boards
   useEffect(() => { setSelection(null); setMultiSelection([]); setCtxMenu(null); }, [board]);
-
   useEffect(() => { document.documentElement.classList.toggle("dark", dark); }, [dark]);
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      const t = (e.target as HTMLElement)?.tagName;
-      if (t === "INPUT" || t === "TEXTAREA") return;
-      if ((e.key === "Delete" || e.key === "Backspace") && selection) deleteSelection();
-      if (e.key === "Escape") { setTool("select"); setSelection(null); setMultiSelection([]); setCtxMenu(null); }
-      if (e.key.toLowerCase() === "r") setTool("room");
-      if (e.key.toLowerCase() === "d") setTool("door");
-      if (e.key.toLowerCase() === "p" && !e.ctrlKey && !e.metaKey) setTool("partition");
-      if (e.key.toLowerCase() === "v") setTool("select");
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "g") {
-        e.preventDefault();
-        if (e.shiftKey) ungroupSelection(); else groupSelection();
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selection, multiSelection, board]);
+  // Switch to props tab when something is selected
+  useEffect(() => { if (selection) setRightTab("props"); }, [selection]);
 
-  // Close context menu on outside click
-  useEffect(() => {
-    if (!ctxMenu) return;
-    const close = () => setCtxMenu(null);
-    window.addEventListener("mousedown", close);
-    return () => window.removeEventListener("mousedown", close);
-  }, [ctxMenu]);
-
+  // ---- Operations ----
   const updateF = (id: string, patch: Partial<Furniture>) => {
     setState(s => {
-      // If part of a group and moving (x/y delta), translate the group together
       const groupId = Object.keys(s.groups).find(gid => s.groups[gid].includes(id));
       if (groupId && (patch.x !== undefined || patch.y !== undefined)) {
         const cur = s.furniture.find(f => f.id === id);
@@ -184,7 +160,11 @@ function Index() {
     const def = DEFAULTS[type];
     const cx = target ? target.x + target.w / 2 : 600;
     const cy = target ? target.y + target.h / 2 : 400;
-    const item: Furniture = { ...def, id: uid(), x: cx - def.w / 2, y: cy - def.h / 2 };
+    const item: Furniture = {
+      ...def, id: uid(),
+      x: cx - def.w / 2, y: cy - def.h / 2,
+      orderable: ORDERABLE_BY_DEFAULT.includes(type),
+    };
     setState(s => ({ ...s, furniture: [...s.furniture, item] }));
     setSelection({ kind: "furniture", id: item.id });
     setTool("select");
@@ -236,6 +216,40 @@ function Index() {
     setCtxMenu(null);
   };
 
+  const copySelection = () => {
+    if (!selection) return;
+    if (selection.kind === "furniture") {
+      const f = state.furniture.find(x => x.id === selection.id);
+      if (f) setClipboard({ kind: "furniture", data: f });
+    } else if (selection.kind === "room") {
+      const r = state.rooms.find(x => x.id === selection.id);
+      if (r) setClipboard({ kind: "room", data: r });
+    } else if (selection.kind === "partition") {
+      const pt = state.partitions.find(x => x.id === selection.id);
+      if (pt) setClipboard({ kind: "partition", data: pt });
+    }
+    setCtxMenu(null);
+  };
+
+  const pasteClipboard = () => {
+    if (!clipboard) return;
+    if (clipboard.kind === "furniture") {
+      const dup = { ...clipboard.data, id: uid(), x: clipboard.data.x + 30, y: clipboard.data.y + 30 };
+      setState(s => ({ ...s, furniture: [...s.furniture, dup] }));
+      setSelection({ kind: "furniture", id: dup.id });
+    } else if (clipboard.kind === "room") {
+      const dup = { ...clipboard.data, id: uid(), x: clipboard.data.x + 30, y: clipboard.data.y + 30 };
+      setState(s => ({ ...s, rooms: [...s.rooms, dup] }));
+      setSelection({ kind: "room", id: dup.id });
+    } else {
+      const pt = clipboard.data;
+      const dup = { ...pt, id: uid(), x1: pt.x1 + 20, y1: pt.y1 + 20, x2: pt.x2 + 20, y2: pt.y2 + 20 };
+      setState(s => ({ ...s, partitions: [...s.partitions, dup] }));
+      setSelection({ kind: "partition", id: dup.id });
+    }
+    setCtxMenu(null);
+  };
+
   const toggleLockSelection = () => {
     const ids = multiSelection.length > 0 ? multiSelection : (selection && "id" in selection ? [selection.id] : []);
     if (ids.length === 0) return;
@@ -265,18 +279,87 @@ function Index() {
     setCtxMenu(null);
   };
 
-  const reorder = (dir: "front" | "back") => {
+  /** Reorder selected furniture in z-order. front/back move one step, top/bottom go all the way. */
+  const reorder = (dir: "up" | "down" | "front" | "back") => {
     if (!selection || selection.kind !== "furniture") return;
     setState(s => {
       const idx = s.furniture.findIndex(f => f.id === selection.id);
       if (idx < 0) return s;
       const arr = [...s.furniture];
       const [item] = arr.splice(idx, 1);
-      if (dir === "front") arr.push(item); else arr.unshift(item);
+      let target = idx;
+      if (dir === "front") target = arr.length;
+      else if (dir === "back") target = 0;
+      else if (dir === "up") target = Math.min(arr.length, idx + 1);
+      else if (dir === "down") target = Math.max(0, idx - 1);
+      arr.splice(target, 0, item);
       return { ...s, furniture: arr };
     });
     setCtxMenu(null);
   };
+
+  const toggleOrderable = (id: string) => {
+    setState(s => ({ ...s, furniture: s.furniture.map(f => f.id === id ? { ...f, orderable: !f.orderable } : f) }));
+  };
+
+  // Arrow keys + shortcuts
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const t = (e.target as HTMLElement)?.tagName;
+      if (t === "INPUT" || t === "TEXTAREA") return;
+      if ((e.key === "Delete" || e.key === "Backspace") && selection) deleteSelection();
+      if (e.key === "Escape") { setTool("select"); setSelection(null); setMultiSelection([]); setCtxMenu(null); setNoticeOpen(false); }
+      if (e.key.toLowerCase() === "r" && !e.ctrlKey && !e.metaKey) setTool("room");
+      if (e.key.toLowerCase() === "d" && !e.ctrlKey && !e.metaKey) setTool("door");
+      if (e.key.toLowerCase() === "p" && !e.ctrlKey && !e.metaKey) setTool("partition");
+      if (e.key.toLowerCase() === "v" && !e.ctrlKey && !e.metaKey) setTool("select");
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "g") {
+        e.preventDefault();
+        if (e.shiftKey) ungroupSelection(); else groupSelection();
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "c" && selection) { e.preventDefault(); copySelection(); }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "v" && clipboard) { e.preventDefault(); pasteClipboard(); }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "d" && selection) { e.preventDefault(); duplicateSelection(); }
+
+      // Arrow nudge
+      if (selection && (e.key === "ArrowUp" || e.key === "ArrowDown" || e.key === "ArrowLeft" || e.key === "ArrowRight")) {
+        e.preventDefault();
+        const step = e.shiftKey ? 20 : 2;
+        const dx = e.key === "ArrowLeft" ? -step : e.key === "ArrowRight" ? step : 0;
+        const dy = e.key === "ArrowUp" ? -step : e.key === "ArrowDown" ? step : 0;
+        if (selection.kind === "furniture") {
+          const f = state.furniture.find(x => x.id === selection.id);
+          if (f) updateF(f.id, { x: f.x + dx, y: f.y + dy });
+        } else if (selection.kind === "room") {
+          const r = state.rooms.find(x => x.id === selection.id);
+          if (r) updateR(r.id, { x: r.x + dx, y: r.y + dy });
+        } else if (selection.kind === "door") {
+          const d = state.doors.find(x => x.id === selection.id);
+          if (d) updateD(d.id, { x: d.x + dx, y: d.y + dy });
+        } else if (selection.kind === "partition") {
+          const pt = state.partitions.find(x => x.id === selection.id);
+          if (pt) updateP(pt.id, { x1: pt.x1 + dx, y1: pt.y1 + dy, x2: pt.x2 + dx, y2: pt.y2 + dy });
+        }
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selection, multiSelection, board, clipboard, state]);
+
+  // Close popups on outside click
+  useEffect(() => {
+    if (!ctxMenu && !noticeOpen && !boardMenuOpen) return;
+    const close = (e: MouseEvent) => {
+      const t = e.target as HTMLElement;
+      if (t.closest("[data-popover]")) return;
+      setCtxMenu(null);
+      setNoticeOpen(false);
+      setBoardMenuOpen(false);
+    };
+    window.addEventListener("mousedown", close);
+    return () => window.removeEventListener("mousedown", close);
+  }, [ctxMenu, noticeOpen, boardMenuOpen]);
 
   const exportJSON = () => {
     const data = JSON.stringify({ board, ...state }, null, 2);
@@ -293,9 +376,7 @@ function Index() {
     setSelection(null); setMultiSelection([]);
   };
 
-  const onContextMenu = (e: ContextMenuEvent) => {
-    setCtxMenu({ x: e.x, y: e.y });
-  };
+  const onContextMenu = (e: ContextMenuEvent) => setCtxMenu({ x: e.x, y: e.y });
 
   const groups = Array.from(new Set(PALETTE.map(p => p.group)));
   const selFurn = selection?.kind === "furniture" ? state.furniture.find(f => f.id === selection.id) : null;
@@ -307,16 +388,26 @@ function Index() {
   const isSelLocked = selection && "id" in selection ? lockedSet.has(selection.id) : false;
   const currentBoardName = BOARDS.find(b => b.id === board)!.name;
 
+  // Compute overlapping items (z-index sorted) for the right-click menu
+  const findOverlapping = (id: string): Furniture[] => {
+    const f = state.furniture.find(x => x.id === id);
+    if (!f) return [];
+    return state.furniture.filter(o => {
+      if (o.id === f.id) return false;
+      return !(o.x + o.w < f.x || o.x > f.x + f.w || o.y + o.h < f.y || o.y > f.y + f.h);
+    });
+  };
+
   return (
     <div className="min-h-screen bg-background p-3">
-      <div className="mx-auto flex h-[calc(100vh-1.5rem)] max-w-[1600px] flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+      <div className="mx-auto flex h-[calc(100vh-1.5rem)] max-w-[1700px] flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
         {/* Header */}
         <header className="flex items-center justify-between border-b border-border px-4 py-2.5">
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-1.5 text-sm font-semibold">
               <Home className="h-4 w-4" /> Archy.
             </div>
-            <div className="relative">
+            <div className="relative" data-popover>
               <button
                 onClick={() => setBoardMenuOpen(o => !o)}
                 className="flex items-center gap-1.5 rounded-lg bg-secondary px-2.5 py-1.5 text-sm hover:bg-accent/40"
@@ -345,6 +436,75 @@ function Index() {
                 </div>
               )}
             </div>
+
+            {/* Notice icon — opens build/control structure */}
+            <div className="relative" data-popover>
+              <button
+                onClick={() => setNoticeOpen(o => !o)}
+                title="Build tools & shortcuts"
+                className={`relative grid h-8 w-8 place-items-center rounded-lg border border-border hover:bg-secondary ${noticeOpen ? "bg-accent/40" : ""}`}
+              >
+                <Bell className="h-4 w-4" />
+                <span className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-primary" />
+              </button>
+              {noticeOpen && (
+                <div className="absolute left-0 top-full z-30 mt-1 w-[320px] rounded-xl border border-border bg-card p-3 shadow-xl">
+                  <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Build</div>
+                  <div className="grid grid-cols-3 gap-1.5">
+                    <button onClick={() => { setTool("room"); setNoticeOpen(false); }}
+                      className={`flex items-center justify-center gap-1 rounded-lg border px-2 py-2 text-xs font-medium transition ${tool==="room" ? "border-primary bg-primary text-primary-foreground" : "border-border hover:bg-secondary"}`}>
+                      <Square className="h-3.5 w-3.5" /> Room
+                    </button>
+                    <button onClick={() => { setTool("partition"); setNoticeOpen(false); }}
+                      className={`flex items-center justify-center gap-1 rounded-lg border px-2 py-2 text-xs font-medium transition ${tool==="partition" ? "border-primary bg-primary text-primary-foreground" : "border-border hover:bg-secondary"}`}>
+                      <Minus className="h-3.5 w-3.5" /> Wall
+                    </button>
+                    <button onClick={() => { setTool("door"); setNoticeOpen(false); }}
+                      className={`flex items-center justify-center gap-1 rounded-lg border px-2 py-2 text-xs font-medium transition ${tool==="door" ? "border-primary bg-primary text-primary-foreground" : "border-border hover:bg-secondary"}`}>
+                      <DoorOpen className="h-3.5 w-3.5" /> Door
+                    </button>
+                  </div>
+
+                  <div className="mt-3">
+                    <div className="mb-1.5 text-[11px] font-medium text-muted-foreground">Room shape</div>
+                    <div className="grid grid-cols-3 gap-1">
+                      {ROOM_SHAPES.map(s => {
+                        const Icon = s.value === "circle" ? Circle : s.value === "l-shape" ? Shapes : Square;
+                        return (
+                          <button key={s.value} onClick={() => setRoomShape(s.value)}
+                            className={`flex flex-col items-center gap-1 rounded-md border px-2 py-1.5 text-[10px] ${roomShape===s.value ? "border-primary bg-accent/40" : "border-border hover:bg-secondary"}`}>
+                            <Icon className="h-3.5 w-3.5" />
+                            {s.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div className="mt-3">
+                    <div className="mb-1.5 text-[11px] font-medium text-muted-foreground">Room type</div>
+                    <div className="flex flex-wrap gap-1">
+                      {ROOM_PRESETS.map((p, i) => (
+                        <button key={p.name} onClick={() => setRoomPresetIdx(i)}
+                          className={`flex items-center gap-1.5 rounded-md border px-2 py-1 text-[11px] ${roomPresetIdx===i ? "border-primary" : "border-border hover:bg-secondary"}`}>
+                          <span className="h-3 w-3 rounded-sm" style={{ background: p.fill }} />
+                          {p.name}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="mt-3 rounded-md bg-accent/30 px-3 py-2 text-[11px] text-accent-foreground">
+                    <div><b>Ctrl + Scroll</b> — zoom</div>
+                    <div><b>Space + Drag</b> — pan canvas</div>
+                    <div><b>Right-click</b> — context menu</div>
+                    <div><b>Shift + Click</b> — multi-select</div>
+                    <div><b>Arrow keys</b> — nudge selection (Shift = 20px)</div>
+                    <div><b>Ctrl + C / V</b> — copy / paste</div>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="flex items-center gap-1.5 rounded-lg border border-border p-1">
@@ -359,9 +519,7 @@ function Index() {
           </div>
 
           <div className="flex items-center gap-2">
-            <span className="hidden md:inline text-[11px] text-muted-foreground">
-              {savedAt ? "Saved ✓" : ""}
-            </span>
+            <span className="hidden md:inline text-[11px] text-muted-foreground">{savedAt ? "Saved ✓" : ""}</span>
             <button onClick={clearAll} className="rounded-md px-2 py-1.5 text-xs text-muted-foreground hover:bg-secondary hover:text-foreground">Clear</button>
             <button onClick={() => setDark(d => !d)} className="rounded-md p-2 hover:bg-secondary">
               {dark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
@@ -378,71 +536,23 @@ function Index() {
           </div>
         </header>
 
-
         <div className="flex flex-1 overflow-hidden">
-          {/* Left panel */}
-          <aside className="flex w-72 flex-col border-r border-border">
-            <div className="border-b border-border p-4">
-              <div className="mb-3 flex items-center justify-between text-sm font-semibold">
-                <span>Build</span>
+          {/* LEFT: Furniture palette — full sidebar scroll, no inner scroll */}
+          <aside className="flex w-72 flex-col overflow-y-auto border-r border-border">
+            <div className="sticky top-0 z-10 border-b border-border bg-card p-3">
+              <div className="flex items-center justify-between">
+                <div className="text-sm font-semibold">Furniture</div>
                 <span className="rounded-full bg-accent/40 px-2 py-0.5 text-[10px] uppercase tracking-wide text-accent-foreground">
                   {board === "salon" ? "Salon" : board === "restaurant" ? "Restaurant" : "Floor"}
                 </span>
               </div>
-              <div className="grid grid-cols-3 gap-1.5">
-                <button onClick={() => setTool("room")}
-                  className={`flex items-center justify-center gap-1 rounded-lg border px-2 py-2 text-xs font-medium transition ${tool==="room" ? "border-primary bg-primary text-primary-foreground" : "border-border hover:bg-secondary"}`}>
-                  <Square className="h-3.5 w-3.5" /> Room
-                </button>
-                <button onClick={() => setTool("partition")}
-                  className={`flex items-center justify-center gap-1 rounded-lg border px-2 py-2 text-xs font-medium transition ${tool==="partition" ? "border-primary bg-primary text-primary-foreground" : "border-border hover:bg-secondary"}`}>
-                  <Minus className="h-3.5 w-3.5" /> Wall
-                </button>
-                <button onClick={() => setTool("door")}
-                  className={`flex items-center justify-center gap-1 rounded-lg border px-2 py-2 text-xs font-medium transition ${tool==="door" ? "border-primary bg-primary text-primary-foreground" : "border-border hover:bg-secondary"}`}>
-                  <DoorOpen className="h-3.5 w-3.5" /> Door
-                </button>
-              </div>
-
-              <div className="mt-3">
-                <div className="mb-1.5 text-[11px] font-medium text-muted-foreground">Room shape</div>
-                <div className="grid grid-cols-3 gap-1">
-                  {ROOM_SHAPES.map(s => {
-                    const Icon = s.value === "circle" ? Circle : s.value === "l-shape" ? Shapes : Square;
-                    return (
-                      <button key={s.value} onClick={() => setRoomShape(s.value)}
-                        className={`flex flex-col items-center gap-1 rounded-md border px-2 py-1.5 text-[10px] ${roomShape===s.value ? "border-primary bg-accent/40" : "border-border hover:bg-secondary"}`}>
-                        <Icon className="h-3.5 w-3.5" />
-                        {s.label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <div className="mt-3">
-                <div className="mb-1.5 text-[11px] font-medium text-muted-foreground">Room type</div>
-                <div className="flex flex-wrap gap-1">
-                  {ROOM_PRESETS.map((p, i) => (
-                    <button key={p.name} onClick={() => setRoomPresetIdx(i)}
-                      className={`flex items-center gap-1.5 rounded-md border px-2 py-1 text-[11px] ${roomPresetIdx===i ? "border-primary" : "border-border hover:bg-secondary"}`}>
-                      <span className="h-3 w-3 rounded-sm" style={{ background: p.fill }} />
-                      {p.name}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="mt-3 rounded-md bg-accent/30 px-3 py-2 text-[11px] text-accent-foreground">
-                <div><b>Ctrl + Scroll</b> — zoom</div>
-                <div><b>Space + Drag</b> — pan canvas</div>
-                <div><b>Right-click</b> — context menu</div>
-                <div><b>Shift + Click</b> — multi-select</div>
+              <div className="mt-2 flex items-center gap-2 rounded-lg bg-secondary px-2.5 py-1.5 text-sm">
+                <Search className="h-3.5 w-3.5 text-muted-foreground" />
+                <input placeholder="Search furniture..." className="flex-1 bg-transparent outline-none placeholder:text-muted-foreground" />
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-3">
-              <div className="mb-2 px-1 text-xs font-semibold">Furniture</div>
+            <div className="p-3">
               {groups.map(g => (
                 <div key={g} className="mb-3">
                   <div className="mb-1 px-1 text-[10px] uppercase tracking-wide text-muted-foreground">{g}</div>
@@ -452,8 +562,8 @@ function Index() {
                       return (
                         <button key={el.type} onClick={() => addFurniture(el.type)}
                           className="group flex flex-col items-center gap-1 rounded-lg border border-border bg-card p-2 text-[10px] transition hover:border-primary hover:bg-accent/30">
-                          <div className="grid h-8 w-8 place-items-center rounded-md" style={{ background: def.fill, opacity: def.opacity }}>
-                            <el.icon className="h-3.5 w-3.5" style={{ color: def.stroke }} />
+                          <div className="grid h-9 w-9 place-items-center rounded-md" style={{ background: def.fill, opacity: def.opacity }}>
+                            <el.icon className="h-4 w-4" style={{ color: def.stroke }} />
                           </div>
                           <span className="text-center leading-tight">{def.name}</span>
                         </button>
@@ -462,45 +572,10 @@ function Index() {
                   </div>
                 </div>
               ))}
-
-              {totalCount > 0 && (
-                <>
-                  <div className="mt-4 mb-2 flex items-center gap-1.5 px-1 text-xs font-semibold">
-                    <Layers className="h-3.5 w-3.5" /> Layers
-                  </div>
-                  <ul className="space-y-0.5">
-                    {state.rooms.map(r => (
-                      <LayerRow key={r.id} active={selection?.kind==="room" && selection.id===r.id}
-                        locked={lockedSet.has(r.id)}
-                        color={r.fill} label={`▢ ${r.name} (${r.shape})`} onClick={() => handleSelect({ kind: "room", id: r.id })} />
-                    ))}
-                    {state.partitions.map(pt => (
-                      <LayerRow key={pt.id} active={selection?.kind==="partition" && selection.id===pt.id}
-                        color={pt.color} label="— Partition" onClick={() => handleSelect({ kind: "partition", id: pt.id })} />
-                    ))}
-                    {state.doors.map(d => (
-                      <LayerRow key={d.id} active={selection?.kind==="door" && selection.id===d.id}
-                        color="#1B1A1A" label="⌐ Door" onClick={() => handleSelect({ kind: "door", id: d.id })} />
-                    ))}
-                    {state.furniture.map(f => (
-                      <LayerRow key={f.id} active={selection?.kind==="furniture" && selection.id===f.id}
-                        locked={lockedSet.has(f.id)}
-                        color={f.fill} label={f.name} onClick={() => handleSelect({ kind: "furniture", id: f.id })} />
-                    ))}
-                  </ul>
-                </>
-              )}
-            </div>
-
-            <div className="border-t border-border p-3">
-              <div className="flex items-center gap-2 rounded-lg bg-secondary px-2.5 py-1.5 text-sm">
-                <Search className="h-3.5 w-3.5 text-muted-foreground" />
-                <input placeholder="Search..." className="flex-1 bg-transparent outline-none placeholder:text-muted-foreground" />
-              </div>
             </div>
           </aside>
 
-          {/* Canvas */}
+          {/* CANVAS */}
           <main className="relative flex-1 overflow-hidden bg-canvas">
             <div className="absolute inset-0 p-4">
               <div className="h-full w-full overflow-hidden rounded-xl bg-card shadow-sm ring-1 ring-border">
@@ -526,22 +601,37 @@ function Index() {
               </div>
             </div>
 
-            {/* Context Menu */}
             {ctxMenu && (
-              <div
-                className="fixed z-50 min-w-[200px] rounded-xl border border-border bg-card p-1 shadow-2xl"
-                style={{ left: Math.min(ctxMenu.x, window.innerWidth - 220), top: Math.min(ctxMenu.y, window.innerHeight - 360) }}
+              <div data-popover
+                className="fixed z-50 min-w-[220px] rounded-xl border border-border bg-card p-1 shadow-2xl"
+                style={{ left: Math.min(ctxMenu.x, window.innerWidth - 240), top: Math.min(ctxMenu.y, window.innerHeight - 420) }}
                 onMouseDown={(e) => e.stopPropagation()}
               >
                 <CtxItem icon={Copy} label="Duplicate" shortcut="⌘D" disabled={!selection} onClick={duplicateSelection} />
-                <CtxItem icon={Clipboard} label="Copy" shortcut="⌘C" disabled={!selection} onClick={duplicateSelection} />
+                <CtxItem icon={Clipboard} label="Copy" shortcut="⌘C" disabled={!selection} onClick={copySelection} />
+                <CtxItem icon={Clipboard} label="Paste" shortcut="⌘V" disabled={!clipboard} onClick={pasteClipboard} />
                 <CtxDivider />
                 <CtxItem icon={isSelLocked ? Unlock : Lock} label={isSelLocked ? "Unlock" : "Lock"} disabled={!selection} onClick={toggleLockSelection} />
                 <CtxItem icon={Group} label="Group" shortcut="⌘G" disabled={multiSelection.length < 2} onClick={groupSelection} />
                 <CtxItem icon={Ungroup} label="Ungroup" shortcut="⇧⌘G" disabled={!selection} onClick={ungroupSelection} />
                 <CtxDivider />
-                <CtxItem icon={ArrowUp} label="Bring to Front" disabled={selection?.kind !== "furniture"} onClick={() => reorder("front")} />
-                <CtxItem icon={ArrowDown} label="Send to Back" disabled={selection?.kind !== "furniture"} onClick={() => reorder("back")} />
+                <CtxItem icon={ChevronsUp} label="Bring to Front" disabled={selection?.kind !== "furniture"} onClick={() => reorder("front")} />
+                <CtxItem icon={ArrowUp} label="Bring Forward" disabled={selection?.kind !== "furniture"} onClick={() => reorder("up")} />
+                <CtxItem icon={ArrowDown} label="Send Backward" disabled={selection?.kind !== "furniture"} onClick={() => reorder("down")} />
+                <CtxItem icon={ChevronsDown} label="Send to Back" disabled={selection?.kind !== "furniture"} onClick={() => reorder("back")} />
+                {selFurn && findOverlapping(selFurn.id).length > 0 && (
+                  <>
+                    <CtxDivider />
+                    <div className="px-2.5 py-1 text-[10px] uppercase tracking-wide text-muted-foreground">Overlapping</div>
+                    {findOverlapping(selFurn.id).slice(0, 5).map(o => (
+                      <button key={o.id} onClick={() => { handleSelect({ kind: "furniture", id: o.id }); setCtxMenu(null); }}
+                        className="flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-xs hover:bg-secondary">
+                        <span className="h-2.5 w-2.5 rounded-sm" style={{ background: o.fill }} />
+                        <span className="flex-1 truncate">{o.name}</span>
+                      </button>
+                    ))}
+                  </>
+                )}
                 <CtxDivider />
                 <CtxItem icon={Scissors} label="Delete" shortcut="⌫" disabled={!selection} onClick={deleteSelection} destructive />
               </div>
@@ -555,6 +645,7 @@ function Index() {
               <ToolBtn active={tool==="door"} onClick={() => setTool("door")} title="Door (D)"><DoorOpen className="h-4 w-4" /></ToolBtn>
               <div className="mx-1 h-5 w-px bg-border" />
               <button disabled={!selection} onClick={duplicateSelection} title="Duplicate" className="rounded-lg p-2 hover:bg-secondary disabled:opacity-40"><Copy className="h-4 w-4" /></button>
+              <button disabled={!selection} onClick={copySelection} title="Copy (⌘C)" className="rounded-lg p-2 hover:bg-secondary disabled:opacity-40"><Clipboard className="h-4 w-4" /></button>
               <button disabled={!selection} onClick={toggleLockSelection} title="Lock/Unlock" className="rounded-lg p-2 hover:bg-secondary disabled:opacity-40">
                 {isSelLocked ? <Unlock className="h-4 w-4" /> : <Lock className="h-4 w-4" />}
               </button>
@@ -570,21 +661,91 @@ function Index() {
             </div>
           </main>
 
-          {/* Right panel */}
-          <aside className="flex w-72 flex-col overflow-y-auto border-l border-border">
-            {!selection && (
-              <div className="flex flex-1 items-center justify-center p-8 text-center text-sm text-muted-foreground">
-                <div>
-                  <Wind className="mx-auto mb-3 h-8 w-8 opacity-40" />
-                  Select a room, door, or furniture to edit its properties.
-                </div>
+          {/* RIGHT: Layers (Figma style) + Properties tabs */}
+          <aside className="flex w-80 flex-col overflow-hidden border-l border-border">
+            <div className="flex border-b border-border">
+              <button onClick={() => setRightTab("layers")}
+                className={`flex flex-1 items-center justify-center gap-1.5 py-2.5 text-xs font-medium ${rightTab === "layers" ? "border-b-2 border-primary text-foreground" : "text-muted-foreground hover:bg-secondary"}`}>
+                <Layers className="h-3.5 w-3.5" /> Layers
+              </button>
+              <button onClick={() => setRightTab("props")}
+                className={`flex flex-1 items-center justify-center gap-1.5 py-2.5 text-xs font-medium ${rightTab === "props" ? "border-b-2 border-primary text-foreground" : "text-muted-foreground hover:bg-secondary"}`}>
+                <Wind className="h-3.5 w-3.5" /> Properties
+              </button>
+            </div>
+
+            {rightTab === "layers" && (
+              <div className="flex-1 overflow-y-auto p-2">
+                {totalCount === 0 && (
+                  <div className="grid h-32 place-items-center text-center text-xs text-muted-foreground">
+                    No layers yet. Add a room or furniture to get started.
+                  </div>
+                )}
+                {state.rooms.length > 0 && (
+                  <LayerGroup label="Rooms" count={state.rooms.length}>
+                    {state.rooms.map(r => (
+                      <LayerRow key={r.id} active={selection?.kind==="room" && selection.id===r.id}
+                        locked={lockedSet.has(r.id)} color={r.fill}
+                        label={`${r.name} · ${r.shape}`} icon="room"
+                        onClick={() => handleSelect({ kind: "room", id: r.id })} />
+                    ))}
+                  </LayerGroup>
+                )}
+                {state.partitions.length > 0 && (
+                  <LayerGroup label="Walls" count={state.partitions.length}>
+                    {state.partitions.map((pt, i) => (
+                      <LayerRow key={pt.id} active={selection?.kind==="partition" && selection.id===pt.id}
+                        color={pt.color} label={`Wall ${i + 1}`} icon="wall"
+                        onClick={() => handleSelect({ kind: "partition", id: pt.id })} />
+                    ))}
+                  </LayerGroup>
+                )}
+                {state.doors.length > 0 && (
+                  <LayerGroup label="Doors" count={state.doors.length}>
+                    {state.doors.map((d, i) => (
+                      <LayerRow key={d.id} active={selection?.kind==="door" && selection.id===d.id}
+                        color="#1B1A1A" label={`Door ${i + 1}`} icon="door"
+                        onClick={() => handleSelect({ kind: "door", id: d.id })} />
+                    ))}
+                  </LayerGroup>
+                )}
+                {state.furniture.length > 0 && (
+                  <LayerGroup label="Furniture" count={state.furniture.length}>
+                    {/* Render in z-order, top item first */}
+                    {[...state.furniture].reverse().map(f => {
+                      const overlaps = findOverlapping(f.id);
+                      return (
+                        <LayerRow key={f.id} active={selection?.kind==="furniture" && selection.id===f.id}
+                          locked={lockedSet.has(f.id)} color={f.fill}
+                          label={f.name + (f.tableNo ? ` #${f.tableNo}` : "")}
+                          icon="furniture"
+                          orderable={f.orderable}
+                          onToggleOrderable={() => toggleOrderable(f.id)}
+                          overlapCount={overlaps.length}
+                          onClick={() => handleSelect({ kind: "furniture", id: f.id })} />
+                      );
+                    })}
+                  </LayerGroup>
+                )}
               </div>
             )}
 
-            {selFurn && <FurnitureProps f={selFurn} onChange={(p) => updateF(selFurn.id, p)} onDelete={deleteSelection} onDuplicate={duplicateSelection} />}
-            {selRoom && <RoomProps r={selRoom} onChange={(p) => updateR(selRoom.id, p)} onDelete={deleteSelection} onDuplicate={duplicateSelection} />}
-            {selDoor && <DoorProps d={selDoor} onChange={(p) => updateD(selDoor.id, p)} onDelete={deleteSelection} />}
-            {selPart && <PartitionProps p={selPart} onChange={(patch) => updateP(selPart.id, patch)} onDelete={deleteSelection} onDuplicate={duplicateSelection} />}
+            {rightTab === "props" && (
+              <div className="flex-1 overflow-y-auto">
+                {!selection && (
+                  <div className="flex flex-1 items-center justify-center p-8 text-center text-sm text-muted-foreground">
+                    <div>
+                      <Wind className="mx-auto mb-3 h-8 w-8 opacity-40" />
+                      Select a room, door, or furniture to edit its properties.
+                    </div>
+                  </div>
+                )}
+                {selFurn && <FurnitureProps f={selFurn} onChange={(p) => updateF(selFurn.id, p)} onDelete={deleteSelection} onDuplicate={duplicateSelection} />}
+                {selRoom && <RoomProps r={selRoom} onChange={(p) => updateR(selRoom.id, p)} onDelete={deleteSelection} onDuplicate={duplicateSelection} />}
+                {selDoor && <DoorProps d={selDoor} onChange={(p) => updateD(selDoor.id, p)} onDelete={deleteSelection} />}
+                {selPart && <PartitionProps p={selPart} onChange={(patch) => updateP(selPart.id, patch)} onDelete={deleteSelection} onDuplicate={duplicateSelection} />}
+              </div>
+            )}
           </aside>
         </div>
       </div>
@@ -601,26 +762,56 @@ function ToolBtn({ active, onClick, title, children }: { active: boolean; onClic
   );
 }
 
-function LayerRow({ active, color, label, onClick, locked }: { active: boolean; color: string; label: string; onClick: () => void; locked?: boolean }) {
+function LayerGroup({ label, count, children }: { label: string; count: number; children: React.ReactNode }) {
+  const [open, setOpen] = useState(true);
+  return (
+    <div className="mb-2">
+      <button onClick={() => setOpen(o => !o)}
+        className="flex w-full items-center gap-1.5 rounded-md px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground hover:bg-secondary">
+        <ChevronDown className={`h-3 w-3 transition ${open ? "" : "-rotate-90"}`} />
+        <span>{label}</span>
+        <span className="ml-auto rounded-full bg-secondary px-1.5 py-0 text-[9px] normal-case">{count}</span>
+      </button>
+      {open && <ul className="mt-1 space-y-0.5 pl-2">{children}</ul>}
+    </div>
+  );
+}
+
+function LayerRow({
+  active, color, label, onClick, locked, icon, orderable, onToggleOrderable, overlapCount,
+}: {
+  active: boolean; color: string; label: string; onClick: () => void;
+  locked?: boolean; icon: "room" | "wall" | "door" | "furniture";
+  orderable?: boolean; onToggleOrderable?: () => void; overlapCount?: number;
+}) {
   return (
     <li>
-      <button onClick={onClick}
-        className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs ${active ? "bg-accent text-accent-foreground" : "hover:bg-secondary"}`}>
-        <span className="h-2.5 w-2.5 rounded-sm border border-border" style={{ background: color }} />
-        <span className="flex-1 text-left truncate">{label}</span>
-        {locked && <Lock className="h-3 w-3 text-muted-foreground" />}
-      </button>
+      <div className={`group flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs ${active ? "bg-accent text-accent-foreground" : "hover:bg-secondary"}`}>
+        <button onClick={onClick} className="flex flex-1 items-center gap-2 truncate text-left">
+          <span className="h-2.5 w-2.5 rounded-sm border border-border shrink-0" style={{ background: color }} />
+          <span className="truncate">{label}</span>
+          {overlapCount && overlapCount > 0 && (
+            <span className="rounded-full bg-primary/15 px-1.5 py-0 text-[9px] font-semibold text-primary" title={`${overlapCount} overlapping`}>
+              ⊕{overlapCount}
+            </span>
+          )}
+        </button>
+        {icon === "furniture" && onToggleOrderable && (
+          <button onClick={onToggleOrderable} title={orderable ? "Orderable (POS)" : "Decoration only"}
+            className={`shrink-0 rounded p-0.5 ${orderable ? "text-primary" : "text-muted-foreground"} opacity-0 group-hover:opacity-100 ${orderable ? "opacity-100" : ""}`}>
+            {orderable ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
+          </button>
+        )}
+        {locked && <Lock className="h-3 w-3 shrink-0 text-muted-foreground" />}
+      </div>
     </li>
   );
 }
 
 function CtxItem({ icon: Icon, label, shortcut, onClick, disabled, destructive }: { icon: typeof Square; label: string; shortcut?: string; onClick: () => void; disabled?: boolean; destructive?: boolean }) {
   return (
-    <button
-      disabled={disabled}
-      onClick={onClick}
-      className={`flex w-full items-center gap-2.5 rounded-md px-2.5 py-1.5 text-left text-sm transition disabled:opacity-40 ${destructive ? "text-destructive hover:bg-destructive/10" : "hover:bg-secondary"}`}
-    >
+    <button disabled={disabled} onClick={onClick}
+      className={`flex w-full items-center gap-2.5 rounded-md px-2.5 py-1.5 text-left text-sm transition disabled:opacity-40 ${destructive ? "text-destructive hover:bg-destructive/10" : "hover:bg-secondary"}`}>
       <Icon className="h-3.5 w-3.5" />
       <span className="flex-1">{label}</span>
       {shortcut && <span className="text-[10px] font-mono text-muted-foreground">{shortcut}</span>}
@@ -628,9 +819,7 @@ function CtxItem({ icon: Icon, label, shortcut, onClick, disabled, destructive }
   );
 }
 
-function CtxDivider() {
-  return <div className="my-1 h-px bg-border" />;
-}
+function CtxDivider() { return <div className="my-1 h-px bg-border" />; }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -685,6 +874,7 @@ function ActionButtons({ onDuplicate, onDelete }: { onDuplicate?: () => void; on
 
 function FurnitureProps({ f, onChange, onDelete, onDuplicate }: { f: Furniture; onChange: (p: Partial<Furniture>) => void; onDelete: () => void; onDuplicate: () => void }) {
   const isDining = f.type === "dining-rect" || f.type === "dining-round" || f.type === "dining-square" || f.type === "booth";
+  const isOrderableType = ORDERABLE_BY_DEFAULT.includes(f.type) || isDining || f.type === "salon-chair" || f.type === "shampoo-chair" || f.type === "massage-bed";
   return (
     <>
       <Section title="Furniture">
@@ -703,6 +893,24 @@ function FurnitureProps({ f, onChange, onDelete, onDuplicate }: { f: Furniture; 
             </Row>
           </>
         )}
+
+        {/* Orderable + reserved toggles */}
+        <div className="mx-3 my-2 rounded-lg border border-border bg-secondary/40 p-2.5 text-xs">
+          <label className="flex items-center justify-between gap-2">
+            <span className="flex items-center gap-1.5"><Users className="h-3.5 w-3.5" /> Orderable in POS</span>
+            <input type="checkbox" checked={!!f.orderable} onChange={e => onChange({ orderable: e.target.checked })} className="h-4 w-4 accent-primary" />
+          </label>
+          <p className="mt-1 text-[10px] text-muted-foreground">
+            {f.orderable ? "Customers can place orders here." : isOrderableType ? "Decoration only — POS will skip this." : "Set ON to allow taking orders here."}
+          </p>
+          {f.orderable && (
+            <label className="mt-2 flex items-center justify-between gap-2 border-t border-border/50 pt-2">
+              <span>Mark as reserved</span>
+              <input type="checkbox" checked={!!f.reserved} onChange={e => onChange({ reserved: e.target.checked })} className="h-4 w-4 accent-primary" />
+            </label>
+          )}
+        </div>
+
         <Row label="Position"><div className="grid w-full grid-cols-2 gap-1.5"><NumField v={f.x} suffix="x" onChange={n => onChange({ x: n })} /><NumField v={f.y} suffix="y" onChange={n => onChange({ y: n })} /></div></Row>
         <Row label="Size"><div className="grid w-full grid-cols-2 gap-1.5"><NumField v={f.w} suffix="w" onChange={n => onChange({ w: Math.max(20, n) })} /><NumField v={f.h} suffix="h" onChange={n => onChange({ h: Math.max(20, n) })} /></div></Row>
         <Row label="Radius"><NumField v={f.radius} onChange={n => onChange({ radius: Math.max(0, n) })} /></Row>

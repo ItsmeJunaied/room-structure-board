@@ -13,7 +13,7 @@ import {
   type Furniture, type FurnitureType, type Room, type Door, type Partition, type Selection, type Tool, type RoomShape, type BoardKind,
 } from "@/lib/floorplan-types";
 
-export const Route = createFileRoute("/")({ component: Index });
+export const Route = createFileRoute("/editor")({ component: Index });
 
 const uid = () => crypto.randomUUID();
 

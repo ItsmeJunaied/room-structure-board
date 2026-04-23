@@ -650,8 +650,29 @@ function FurnitureShape({ f, onMouseDown, onContextMenu, onMouseEnter, onMouseLe
     case "chair":
       return (
         <g {...handlers} style={{ cursor: "move" }}>
+          {/* seat */}
           <rect x={f.x} y={f.y + f.h * 0.18} width={f.w} height={f.h * 0.82} rx={f.radius} fill={f.fill} stroke={f.stroke} strokeWidth={1.4} opacity={f.opacity} />
-          <rect x={f.x} y={f.y} width={f.w} height={f.h * 0.22} rx={3} fill={f.stroke} opacity={0.65} pointerEvents="none" />
+          {/* cushion highlight */}
+          <rect x={f.x + 4} y={f.y + f.h * 0.28} width={f.w - 8} height={f.h * 0.55} rx={Math.max(2, f.radius - 2)} fill="white" opacity={0.25} pointerEvents="none" />
+          {/* backrest */}
+          <rect x={f.x} y={f.y} width={f.w} height={f.h * 0.22} rx={4} fill={f.stroke} opacity={0.85} pointerEvents="none" />
+          {/* arm hints */}
+          <rect x={f.x - 2} y={f.y + f.h * 0.32} width={4} height={f.h * 0.45} rx={2} fill={f.stroke} opacity={0.5} pointerEvents="none" />
+          <rect x={f.x + f.w - 2} y={f.y + f.h * 0.32} width={4} height={f.h * 0.45} rx={2} fill={f.stroke} opacity={0.5} pointerEvents="none" />
+        </g>
+      );
+    case "door-decor":
+      return (
+        <g {...handlers} style={{ cursor: "move" }}>
+          {/* door frame */}
+          <rect x={f.x} y={f.y} width={f.w} height={f.h} rx={2} fill={f.fill} stroke={f.stroke} strokeWidth={1.4} opacity={f.opacity} />
+          {/* door panel divisions */}
+          <line x1={f.x + f.w * 0.5} y1={f.y + 2} x2={f.x + f.w * 0.5} y2={f.y + f.h - 2} stroke={f.stroke} strokeWidth={0.8} opacity={0.6} pointerEvents="none" />
+          {/* knob */}
+          <circle cx={f.x + f.w * 0.5} cy={f.y + f.h * 0.5} r={Math.min(f.h, 5)} fill="#FFD27A" stroke={f.stroke} strokeWidth={0.8} pointerEvents="none" />
+          {/* swing arc */}
+          <path d={`M ${f.x} ${f.y + f.h} A ${f.w} ${f.w} 0 0 1 ${f.x + f.w} ${f.y + f.h}`}
+            fill="none" stroke={f.stroke} strokeWidth="0.8" strokeDasharray="2 2" opacity="0.45" pointerEvents="none" />
         </g>
       );
     case "table":

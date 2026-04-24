@@ -496,6 +496,7 @@ function Index() {
 
   const clearAll = () => {
     if (!confirm("Clear this board?")) return;
+    beginHistory();
     setState(emptyBoard());
     setSelection(null); setMultiSelection([]);
   };

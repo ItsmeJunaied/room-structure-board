@@ -37,6 +37,8 @@ interface Props {
   onAddDoor: (d: Door) => void;
   onAddPartition: (p: Partition) => void;
   onSetTool: (t: Tool) => void;
+  /** Called once at the start of a user-driven edit (drag move/resize/rotate) so the parent can checkpoint history. */
+  onBeginEdit?: () => void;
   onContextMenu?: (e: ContextMenuEvent) => void;
   /** Called when user drags a marquee on empty canvas. Box is in SVG coords. */
   onMarquee?: (box: { x: number; y: number; w: number; h: number }, additive: boolean) => void;

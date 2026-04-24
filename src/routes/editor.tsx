@@ -9,7 +9,7 @@ import {
   Circle, Minus, Shapes, Lock, Unlock, Group, Ungroup, Scissors, Clipboard,
   ArrowUp, ArrowDown, ChevronsUp, ChevronsDown,
   Scissors as ScissorsIcon, Coins, UtensilsCrossed, CircleDot,
-  Save, ArrowRight, LogOut, Eye, EyeOff, Droplets, Users,
+  Save, ArrowRight, LogOut, Eye, EyeOff, Droplets, Users, Undo2, Redo2,
 } from "lucide-react";
 import { FloorCanvas, type ContextMenuEvent } from "@/components/FloorCanvas";
 import {

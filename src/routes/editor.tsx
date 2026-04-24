@@ -150,7 +150,11 @@ function Index() {
           const dx = patch.x !== undefined ? patch.x - cur.x : 0;
           const dy = patch.y !== undefined ? patch.y - cur.y : 0;
           const ids = s.groups[groupId];
-          return { ...s, furniture: s.furniture.map(f => ids.includes(f.id) ? reparent({ ...f, x: f.x + dx, y: f.y + dy }) : f) };
+          return {
+            ...s,
+            furniture: s.furniture.map(f => ids.includes(f.id) ? reparent({ ...f, x: f.x + dx, y: f.y + dy }) : f),
+            rooms: s.rooms.map(r => ids.includes(r.id) ? { ...r, x: r.x + dx, y: r.y + dy } : r),
+          };
         }
       }
       return { ...s, furniture: s.furniture.map(f => f.id === id ? reparent({ ...f, ...patch }) : f) };
@@ -161,10 +165,16 @@ function Index() {
       const cur = s.rooms.find(r => r.id === id);
       const dx = cur && patch.x !== undefined ? patch.x - cur.x : 0;
       const dy = cur && patch.y !== undefined ? patch.y - cur.y : 0;
-      const rooms = s.rooms.map(r => r.id === id ? { ...r, ...patch } : r);
-      // Move all furniture attached to this room by the same delta
+      const groupId = Object.keys(s.groups).find(gid => s.groups[gid].includes(id));
+      const groupIds = groupId ? s.groups[groupId] : [];
+      const rooms = s.rooms.map(r => {
+        if (r.id === id) return { ...r, ...patch };
+        if ((dx || dy) && groupIds.includes(r.id)) return { ...r, x: r.x + dx, y: r.y + dy };
+        return r;
+      });
+      // Move furniture attached to this room OR in same group as the room
       const furniture = (dx || dy)
-        ? s.furniture.map(f => f.roomId === id ? { ...f, x: f.x + dx, y: f.y + dy } : f)
+        ? s.furniture.map(f => (f.roomId === id || groupIds.includes(f.id)) ? { ...f, x: f.x + dx, y: f.y + dy } : f)
         : s.furniture;
       return { ...s, rooms, furniture };
     });

@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { getCurrentUser, logout } from "@/lib/auth";
 import { loadBoards, saveBoards } from "@/lib/storage";
 import {

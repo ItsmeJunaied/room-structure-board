@@ -482,6 +482,11 @@ export function FloorCanvas(p: Props) {
                 fill={status === "active" ? "oklch(0.62 0.16 152)" : status === "reserved" ? "oklch(0.7 0.18 60)" : "oklch(0.85 0.005 240)"}
                 stroke="white" strokeWidth={1.5} pointerEvents="none" />
             )}
+            {/* Multi-selection highlight (so shift+click feedback is visible) */}
+            {sel && (
+              <rect x={f.x - 2} y={f.y - 2} width={f.w + 4} height={f.h + 4}
+                fill="none" stroke="var(--primary)" strokeWidth={2} strokeDasharray="4 3" pointerEvents="none" />
+            )}
             {sel && !showLbl && (
               <text x={cx} y={cy + 4} textAnchor="middle" fontSize="10" fill="oklch(0.3 0.05 152)" fontStyle="italic" pointerEvents="none">
                 {f.name}{isLocked ? " 🔒" : ""}

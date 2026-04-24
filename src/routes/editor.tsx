@@ -521,6 +521,7 @@ function Index() {
   /** Reorder a furniture layer by drag-and-drop in the Layers panel. */
   const reorderLayer = (fromId: string, toId: string) => {
     if (fromId === toId) return;
+    beginHistory();
     setState(s => {
       // The layers panel renders furniture in reverse order (top item first).
       // We translate that to underlying array indices.

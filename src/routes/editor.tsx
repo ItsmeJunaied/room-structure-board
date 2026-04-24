@@ -99,6 +99,11 @@ function Index() {
   const [boardMenuOpen, setBoardMenuOpen] = useState(false);
   const [noticeOpen, setNoticeOpen] = useState(false);
 
+  // Per-board undo/redo history. Each stack holds prior BoardState snapshots.
+  const [history, setHistory] = useState<Record<BoardKind, BoardState[]>>({ floor: [], salon: [], restaurant: [] });
+  const [future, setFuture] = useState<Record<BoardKind, BoardState[]>>({ floor: [], salon: [], restaurant: [] });
+  const HISTORY_LIMIT = 100;
+
   useEffect(() => {
     if (!user) return;
     saveBoards(user.email, boards);

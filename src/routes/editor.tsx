@@ -125,9 +125,44 @@ function Index() {
 
   const setState = (patch: Partial<BoardState> | ((s: BoardState) => BoardState)) => {
     setBoards(prev => {
-      const next = typeof patch === "function" ? patch(prev[board]) : { ...prev[board], ...patch };
+      const cur = prev[board];
+      const next = typeof patch === "function" ? patch(cur) : { ...cur, ...patch };
+      if (next === cur) return prev;
+      // push previous state to history, clear redo
+      setHistory(h => ({ ...h, [board]: [...h[board], cur].slice(-HISTORY_LIMIT) }));
+      setFuture(f => ({ ...f, [board]: [] }));
       return { ...prev, [board]: next };
     });
+  };
+
+  const undo = () => {
+    setHistory(h => {
+      const stack = h[board];
+      if (stack.length === 0) return h;
+      const prev = stack[stack.length - 1];
+      const newStack = stack.slice(0, -1);
+      setBoards(b => {
+        setFuture(f => ({ ...f, [board]: [...f[board], b[board]].slice(-HISTORY_LIMIT) }));
+        return { ...b, [board]: prev };
+      });
+      return { ...h, [board]: newStack };
+    });
+    setSelection(null); setMultiSelection([]); setCtxMenu(null);
+  };
+
+  const redo = () => {
+    setFuture(f => {
+      const stack = f[board];
+      if (stack.length === 0) return f;
+      const next = stack[stack.length - 1];
+      const newStack = stack.slice(0, -1);
+      setBoards(b => {
+        setHistory(h => ({ ...h, [board]: [...h[board], b[board]].slice(-HISTORY_LIMIT) }));
+        return { ...b, [board]: next };
+      });
+      return { ...f, [board]: newStack };
+    });
+    setSelection(null); setMultiSelection([]); setCtxMenu(null);
   };
 
   const PALETTE = board === "salon" ? SALON_PALETTE : board === "restaurant" ? RESTAURANT_PALETTE : FLOOR_PALETTE;

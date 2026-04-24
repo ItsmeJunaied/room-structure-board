@@ -166,8 +166,6 @@ function Index() {
       if (!cur) return s;
       const dx = patch.x !== undefined ? patch.x - cur.x : 0;
       const dy = patch.y !== undefined ? patch.y - cur.y : 0;
-      // A pure move = position changed but size did NOT change.
-      // A resize (even from left/top, where x changes too) must NOT drag children.
       const isResize = patch.w !== undefined || patch.h !== undefined;
       const isMove = !isResize && (dx !== 0 || dy !== 0);
       const groupId = Object.keys(s.groups).find(gid => s.groups[gid].includes(id));
@@ -177,11 +175,19 @@ function Index() {
         if (isMove && groupIds.includes(r.id)) return { ...r, x: r.x + dx, y: r.y + dy };
         return r;
       });
-      // Move furniture attached to this room OR in same group as the room — ONLY on pure moves
+      // On pure move: drag attached furniture, plus doors & partitions inside room bounds.
+      const insideRoom = (px: number, py: number) =>
+        px >= cur.x && px <= cur.x + cur.w && py >= cur.y && py <= cur.y + cur.h;
       const furniture = isMove
         ? s.furniture.map(f => (f.roomId === id || groupIds.includes(f.id)) ? { ...f, x: f.x + dx, y: f.y + dy } : f)
         : s.furniture;
-      return { ...s, rooms, furniture };
+      const doors = isMove
+        ? s.doors.map(d => insideRoom(d.x, d.y) ? { ...d, x: d.x + dx, y: d.y + dy } : d)
+        : s.doors;
+      const partitions = isMove
+        ? s.partitions.map(p => (insideRoom(p.x1, p.y1) && insideRoom(p.x2, p.y2)) ? { ...p, x1: p.x1 + dx, y1: p.y1 + dy, x2: p.x2 + dx, y2: p.y2 + dy } : p)
+        : s.partitions;
+      return { ...s, rooms, furniture, doors, partitions };
     });
   const updateD = (id: string, patch: Partial<Door>) =>
     setState(s => ({ ...s, doors: s.doors.map(d => d.id === id ? { ...d, ...patch } : d) }));

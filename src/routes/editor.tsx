@@ -9,7 +9,7 @@ import {
   Circle, Minus, Shapes, Lock, Unlock, Group, Ungroup, Scissors, Clipboard,
   ArrowUp, ArrowDown, ChevronsUp, ChevronsDown,
   Scissors as ScissorsIcon, Coins, UtensilsCrossed, CircleDot,
-  Save, ArrowRight, LogOut, Eye, EyeOff, Droplets, Users,
+  Save, ArrowRight, LogOut, Eye, EyeOff, Droplets, Users, Undo2, Redo2,
 } from "lucide-react";
 import { FloorCanvas, type ContextMenuEvent } from "@/components/FloorCanvas";
 import {
@@ -99,6 +99,11 @@ function Index() {
   const [boardMenuOpen, setBoardMenuOpen] = useState(false);
   const [noticeOpen, setNoticeOpen] = useState(false);
 
+  // Per-board undo/redo history. Each stack holds prior BoardState snapshots.
+  const [history, setHistory] = useState<Record<BoardKind, BoardState[]>>({ floor: [], salon: [], restaurant: [] });
+  const [future, setFuture] = useState<Record<BoardKind, BoardState[]>>({ floor: [], salon: [], restaurant: [] });
+  const HISTORY_LIMIT = 100;
+
   useEffect(() => {
     if (!user) return;
     saveBoards(user.email, boards);
@@ -120,9 +125,44 @@ function Index() {
 
   const setState = (patch: Partial<BoardState> | ((s: BoardState) => BoardState)) => {
     setBoards(prev => {
-      const next = typeof patch === "function" ? patch(prev[board]) : { ...prev[board], ...patch };
+      const cur = prev[board];
+      const next = typeof patch === "function" ? patch(cur) : { ...cur, ...patch };
+      if (next === cur) return prev;
+      // push previous state to history, clear redo
+      setHistory(h => ({ ...h, [board]: [...h[board], cur].slice(-HISTORY_LIMIT) }));
+      setFuture(f => ({ ...f, [board]: [] }));
       return { ...prev, [board]: next };
     });
+  };
+
+  const undo = () => {
+    setHistory(h => {
+      const stack = h[board];
+      if (stack.length === 0) return h;
+      const prev = stack[stack.length - 1];
+      const newStack = stack.slice(0, -1);
+      setBoards(b => {
+        setFuture(f => ({ ...f, [board]: [...f[board], b[board]].slice(-HISTORY_LIMIT) }));
+        return { ...b, [board]: prev };
+      });
+      return { ...h, [board]: newStack };
+    });
+    setSelection(null); setMultiSelection([]); setCtxMenu(null);
+  };
+
+  const redo = () => {
+    setFuture(f => {
+      const stack = f[board];
+      if (stack.length === 0) return f;
+      const next = stack[stack.length - 1];
+      const newStack = stack.slice(0, -1);
+      setBoards(b => {
+        setHistory(h => ({ ...h, [board]: [...h[board], b[board]].slice(-HISTORY_LIMIT) }));
+        return { ...b, [board]: next };
+      });
+      return { ...f, [board]: newStack };
+    });
+    setSelection(null); setMultiSelection([]); setCtxMenu(null);
   };
 
   const PALETTE = board === "salon" ? SALON_PALETTE : board === "restaurant" ? RESTAURANT_PALETTE : FLOOR_PALETTE;
@@ -374,6 +414,15 @@ function Index() {
     const onKey = (e: KeyboardEvent) => {
       const t = (e.target as HTMLElement)?.tagName;
       if (t === "INPUT" || t === "TEXTAREA") return;
+      // Undo / Redo (must be before single-letter shortcuts)
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") {
+        e.preventDefault();
+        if (e.shiftKey) redo(); else undo();
+        return;
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "y") {
+        e.preventDefault(); redo(); return;
+      }
       if ((e.key === "Delete" || e.key === "Backspace") && selection) deleteSelection();
       if (e.key === "Escape") { setTool("select"); setSelection(null); setMultiSelection([]); setCtxMenu(null); setNoticeOpen(false); }
       if (e.key.toLowerCase() === "r" && !e.ctrlKey && !e.metaKey) setTool("room");
@@ -618,6 +667,12 @@ function Index() {
 
           <div className="flex items-center gap-2">
             <span className="hidden md:inline text-[11px] text-muted-foreground">{savedAt ? "Saved ✓" : ""}</span>
+            <button onClick={undo} disabled={history[board].length === 0} title="Undo (Ctrl+Z)" className="rounded-md p-2 hover:bg-secondary disabled:opacity-40 disabled:hover:bg-transparent">
+              <Undo2 className="h-4 w-4" />
+            </button>
+            <button onClick={redo} disabled={future[board].length === 0} title="Redo (Ctrl+Y)" className="rounded-md p-2 hover:bg-secondary disabled:opacity-40 disabled:hover:bg-transparent">
+              <Redo2 className="h-4 w-4" />
+            </button>
             <button onClick={clearAll} className="rounded-md px-2 py-1.5 text-xs text-muted-foreground hover:bg-secondary hover:text-foreground">Clear</button>
             <button onClick={() => setDark(d => !d)} className="rounded-md p-2 hover:bg-secondary">
               {dark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}

@@ -305,6 +305,7 @@ function Index() {
 
   const duplicateSelection = () => {
     if (!selection) return;
+    beginHistory();
     if (selection.kind === "furniture") {
       const f = state.furniture.find(x => x.id === selection.id); if (!f) return;
       const dup = { ...f, id: uid(), x: f.x + 24, y: f.y + 24 };

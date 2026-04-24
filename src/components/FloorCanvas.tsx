@@ -598,12 +598,15 @@ function FurnitureShape({ f, onMouseDown, onContextMenu, onMouseEnter, onMouseLe
     case "salon-chair":
       return (
         <g {...handlers} style={{ cursor: "move" }}>
+          {/* invisible full-bounds hit target so clicks anywhere on chair register */}
+          <rect x={f.x} y={f.y} width={f.w} height={f.h} fill="transparent" />
           <ellipse cx={cx} cy={f.y + f.h * 0.94} rx={f.w * 0.28} ry={f.h * 0.06} fill={f.stroke} opacity={0.35} pointerEvents="none" />
           <ellipse cx={cx} cy={f.y + f.h * 0.85} rx={f.w * 0.42} ry={f.h * 0.06} fill={f.stroke} opacity={0.85} pointerEvents="none" />
           <line x1={cx} y1={f.y + f.h * 0.7} x2={cx} y2={f.y + f.h * 0.85} stroke={f.stroke} strokeWidth={3} opacity={0.7} pointerEvents="none" />
-          <rect x={f.x + 2} y={f.y + f.h * 0.5} width={f.w - 4} height={f.h * 0.22} rx={6} fill={f.fill} stroke={f.stroke} strokeWidth={1.4} opacity={f.opacity} />
+          <rect x={f.x + 2} y={f.y + f.h * 0.5} width={f.w - 4} height={f.h * 0.22} rx={6} fill={f.fill} stroke={f.stroke} strokeWidth={1.4} opacity={f.opacity} pointerEvents="none" />
           <rect x={f.x + f.w * 0.1} y={f.y + f.h * 0.05} width={f.w * 0.8} height={f.h * 0.5} rx={f.w * 0.2} fill={f.fill} stroke={f.stroke} strokeWidth={1.4} opacity={f.opacity} pointerEvents="none" />
-          <rect x={f.x + f.w * 0.25} y={f.y + f.h * 0.08} width={f.w * 0.5} height={f.h * 0.13} rx={6} fill="white" opacity={0.18} pointerEvents="none" />
+          <rect x={f.x + f.w * 0.25} y={f.y + f.h * 0.08} width={f.w * 0.5} height={f.h * 0.13} rx={6} fill="white" opacity={0.25} pointerEvents="none" />
+          <circle cx={f.x + f.w * 0.3} cy={f.y + f.h * 0.32} r={2.5} fill="white" opacity={0.6} pointerEvents="none" />
           <rect x={f.x - 3} y={f.y + f.h * 0.45} width={6} height={f.h * 0.22} rx={3} fill={f.stroke} opacity={0.55} pointerEvents="none" />
           <rect x={f.x + f.w - 3} y={f.y + f.h * 0.45} width={6} height={f.h * 0.22} rx={3} fill={f.stroke} opacity={0.55} pointerEvents="none" />
         </g>
@@ -611,12 +614,15 @@ function FurnitureShape({ f, onMouseDown, onContextMenu, onMouseEnter, onMouseLe
     case "shampoo-chair":
       return (
         <g {...handlers} style={{ cursor: "move" }}>
-          <ellipse cx={cx} cy={f.y + f.h * 0.14} rx={f.w * 0.42} ry={f.h * 0.1} fill="#E6EEF3" stroke={f.stroke} strokeWidth={1.4} opacity={f.opacity} />
-          <ellipse cx={cx} cy={f.y + f.h * 0.13} rx={f.w * 0.3} ry={f.h * 0.06} fill="white" opacity={0.6} pointerEvents="none" />
+          {/* invisible full-bounds hit target */}
+          <rect x={f.x} y={f.y} width={f.w} height={f.h} fill="transparent" />
+          <ellipse cx={cx} cy={f.y + f.h * 0.14} rx={f.w * 0.42} ry={f.h * 0.1} fill="#E6EEF3" stroke={f.stroke} strokeWidth={1.4} opacity={f.opacity} pointerEvents="none" />
+          <ellipse cx={cx} cy={f.y + f.h * 0.13} rx={f.w * 0.3} ry={f.h * 0.06} fill="white" opacity={0.7} pointerEvents="none" />
           <rect x={cx - 2} y={f.y - 4} width={4} height={10} rx={1.5} fill={f.stroke} pointerEvents="none" />
           <rect x={f.x + f.w * 0.3} y={f.y + f.h * 0.22} width={f.w * 0.4} height={f.h * 0.08} rx={4} fill={f.stroke} opacity={0.5} pointerEvents="none" />
-          <rect x={f.x + 4} y={f.y + f.h * 0.32} width={f.w - 8} height={f.h * 0.55} rx={f.radius} fill={f.fill} stroke={f.stroke} strokeWidth={1.4} opacity={f.opacity} />
-          <line x1={f.x + 8} y1={f.y + f.h * 0.6} x2={f.x + f.w - 8} y2={f.y + f.h * 0.6} stroke={f.stroke} strokeWidth={0.8} opacity={0.4} pointerEvents="none" />
+          <rect x={f.x + 4} y={f.y + f.h * 0.32} width={f.w - 8} height={f.h * 0.55} rx={f.radius} fill={f.fill} stroke={f.stroke} strokeWidth={1.4} opacity={f.opacity} pointerEvents="none" />
+          <rect x={f.x + 8} y={f.y + f.h * 0.4} width={f.w - 16} height={f.h * 0.18} rx={6} fill="white" opacity={0.25} pointerEvents="none" />
+          <line x1={f.x + 8} y1={f.y + f.h * 0.62} x2={f.x + f.w - 8} y2={f.y + f.h * 0.62} stroke={f.stroke} strokeWidth={0.8} opacity={0.4} pointerEvents="none" />
           <rect x={f.x + f.w * 0.2} y={f.y + f.h * 0.88} width={f.w * 0.6} height={f.h * 0.1} rx={4} fill={f.stroke} opacity={0.55} pointerEvents="none" />
         </g>
       );

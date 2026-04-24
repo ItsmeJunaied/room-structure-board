@@ -142,3 +142,36 @@ export function loadExpenses(email: string): Expense[] {
 export function saveExpenses(email: string, exp: Expense[]) {
   localStorage.setItem(EXPENSES_KEY(email), JSON.stringify(exp));
 }
+
+// ---- Reservations -------------------------------------------------------
+
+export interface Reservation {
+  id: string;
+  email: string;
+  customerName: string;
+  phone: string;
+  spotId?: string;
+  spotLabel?: string;
+  /** ISO date+time string (e.g. 2026-04-25T18:30) */
+  when: string;
+  partySize: number;
+  notes?: string;
+  status: "pending" | "confirmed" | "seated" | "cancelled";
+  createdAt: number;
+}
+
+const RES_KEY = (email: string) => `fp_reservations_v1:${email.toLowerCase()}`;
+
+export function loadReservations(email: string): Reservation[] {
+  try {
+    const raw = localStorage.getItem(RES_KEY(email));
+    return raw ? (JSON.parse(raw) as Reservation[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function saveReservations(email: string, items: Reservation[]) {
+  localStorage.setItem(RES_KEY(email), JSON.stringify(items));
+}
+

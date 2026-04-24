@@ -2,12 +2,12 @@ import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import {
   Home, Scissors, UtensilsCrossed, LogOut, Search, Plus, Minus, Trash2, Receipt, Clock,
-  Pencil, User as UserIcon, Wallet, BadgeCheck, CircleDot, BarChart3,
+  Pencil, User as UserIcon, Wallet, BadgeCheck, CircleDot, BarChart3, CalendarDays, Users,
 } from "lucide-react";
 import { getCurrentUser, logout } from "@/lib/auth";
 import {
-  loadBoards, boardHasContent, loadOrders, saveOrders, loadBarbers,
-  type BoardState, type Order, type OrderLine,
+  loadBoards, boardHasContent, loadOrders, saveOrders, loadBarbers, loadReservations,
+  type BoardState, type Order, type OrderLine, type Reservation,
 } from "@/lib/storage";
 import { menuFor, type MenuItem } from "@/lib/menu-data";
 import { FloorCanvas } from "@/components/FloorCanvas";
@@ -28,6 +28,7 @@ function POSPage() {
 
   const [board, setBoard] = useState<BoardState | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
+  const [reservations, setReservations] = useState<Reservation[]>([]);
   const [activeSpot, setActiveSpot] = useState<Furniture | null>(null);
   const [hoverSpot, setHoverSpot] = useState<Furniture | null>(null);
   const [search, setSearch] = useState("");
@@ -38,6 +39,7 @@ function POSPage() {
     const all = loadBoards(user.email);
     setBoard(all ? all[boardKind] : null);
     setOrders(loadOrders(user.email));
+    setReservations(loadReservations(user.email));
   }, [user, boardKind]);
 
   const barbers = useMemo(() => user ? loadBarbers(user.email, role) : [], [user, role]);
@@ -160,11 +162,32 @@ function POSPage() {
     );
   }
 
+  // A spot is reserved if explicitly flagged OR has an active confirmed/pending reservation
+  const reservedSpotIds = (() => {
+    const ids = new Set<string>();
+    for (const r of reservations) {
+      if ((r.status === "pending" || r.status === "confirmed") && r.spotId) ids.add(r.spotId);
+    }
+    return ids;
+  })();
+
   // Status helper for canvas badges
   const getStatus = (f: Furniture): "idle" | "active" | "reserved" | null => {
     if (!isSpot(f)) return null;
-    if (f.reserved) return "reserved";
-    return openOrderFor(f.id) ? "active" : "idle";
+    if (openOrderFor(f.id)) return "active";
+    if (f.reserved || reservedSpotIds.has(f.id)) return "reserved";
+    return "idle";
+  };
+
+  // Live counts for header
+  const today = new Date().toISOString().slice(0, 10);
+  const counts = {
+    inProgress: orders.filter(o => o.status === "open").length,
+    reservedCount: spots.filter(s => s.reserved || reservedSpotIds.has(s.id)).length,
+    waiting: reservations.filter(r =>
+      (r.status === "pending" || r.status === "confirmed") &&
+      r.when.slice(0, 10) === today
+    ).length,
   };
 
   return (
@@ -180,17 +203,21 @@ function POSPage() {
               {role === "salon" ? "Salon" : "Restaurant"}
             </span>
             <nav className="ml-3 hidden items-center gap-1 md:flex">
-              <NavTab to="/pos"     icon={Receipt}   label="POS" active />
-              <NavTab to="/sales"   icon={BarChart3} label="Sales" />
-              <NavTab to="/user"    icon={UserIcon}  label="Staff" />
-              <NavTab to="/expense" icon={Wallet}    label="Expense" />
+              <NavTab to="/pos"          icon={Receipt}      label="POS" active />
+              <NavTab to="/reservations" icon={CalendarDays} label="Reservations" />
+              <NavTab to="/sales"        icon={BarChart3}    label="Sales" />
+              <NavTab to="/user"         icon={UserIcon}     label="Staff" />
+              <NavTab to="/expense"      icon={Wallet}       label="Expense" />
             </nav>
           </div>
 
-          <div className="flex items-center gap-3 text-xs text-muted-foreground">
-            <span className="hidden md:inline">
-              {spots.length} {spotLabelSingular.toLowerCase()}{spots.length === 1 ? "" : "s"} · {orders.filter(o => o.status === "open").length} open
-            </span>
+          <div className="flex items-center gap-2 text-xs">
+            {/* Live status counters */}
+            <div className="hidden items-center gap-1.5 md:flex">
+              <CountChip Icon={Clock}        label="In progress" value={counts.inProgress} tone="primary" />
+              <CountChip Icon={BadgeCheck}   label="Reserved"    value={counts.reservedCount} tone="amber" />
+              <CountChip Icon={Users}        label="Waiting"     value={counts.waiting} tone="muted" />
+            </div>
             <Link to="/editor" className="flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-foreground hover:bg-secondary">
               <Pencil className="h-3.5 w-3.5" /> Edit floor plan
             </Link>
@@ -490,3 +517,20 @@ function Legend({ color, label }: { color: string; label: string }) {
     </span>
   );
 }
+
+function CountChip({ Icon, label, value, tone }: {
+  Icon: typeof Clock; label: string; value: number; tone: "primary" | "amber" | "muted";
+}) {
+  const cls =
+    tone === "primary" ? "bg-primary/10 text-primary border-primary/30" :
+    tone === "amber"   ? "bg-amber-500/10 text-amber-700 border-amber-500/30 dark:text-amber-400" :
+                         "bg-secondary text-muted-foreground border-border";
+  return (
+    <span title={label} className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-1 text-[11px] font-medium ${cls}`}>
+      <Icon className="h-3 w-3" />
+      <span className="hidden lg:inline">{label}</span>
+      <span className="font-bold">{value}</span>
+    </span>
+  );
+}
+

@@ -414,6 +414,15 @@ function Index() {
     const onKey = (e: KeyboardEvent) => {
       const t = (e.target as HTMLElement)?.tagName;
       if (t === "INPUT" || t === "TEXTAREA") return;
+      // Undo / Redo (must be before single-letter shortcuts)
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") {
+        e.preventDefault();
+        if (e.shiftKey) redo(); else undo();
+        return;
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "y") {
+        e.preventDefault(); redo(); return;
+      }
       if ((e.key === "Delete" || e.key === "Backspace") && selection) deleteSelection();
       if (e.key === "Escape") { setTool("select"); setSelection(null); setMultiSelection([]); setCtxMenu(null); setNoticeOpen(false); }
       if (e.key.toLowerCase() === "r" && !e.ctrlKey && !e.metaKey) setTool("room");

@@ -162,12 +162,34 @@ function POSPage() {
     );
   }
 
+  // A spot is reserved if explicitly flagged OR has an active confirmed/pending reservation
+  const reservedSpotIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const r of reservations) {
+      if ((r.status === "pending" || r.status === "confirmed") && r.spotId) ids.add(r.spotId);
+    }
+    return ids;
+  }, [reservations]);
+
   // Status helper for canvas badges
   const getStatus = (f: Furniture): "idle" | "active" | "reserved" | null => {
     if (!isSpot(f)) return null;
-    if (f.reserved) return "reserved";
-    return openOrderFor(f.id) ? "active" : "idle";
+    if (openOrderFor(f.id)) return "active";
+    if (f.reserved || reservedSpotIds.has(f.id)) return "reserved";
+    return "idle";
   };
+
+  // Live counts for header
+  const counts = useMemo(() => {
+    const inProgress = orders.filter(o => o.status === "open").length;
+    const reservedCount = spots.filter(s => s.reserved || reservedSpotIds.has(s.id)).length;
+    const today = new Date().toISOString().slice(0, 10);
+    const waiting = reservations.filter(r =>
+      (r.status === "pending" || r.status === "confirmed") &&
+      r.when.slice(0, 10) === today
+    ).length;
+    return { inProgress, reservedCount, waiting };
+  }, [orders, spots, reservedSpotIds, reservations]);
 
   return (
     <div className="min-h-screen bg-background p-3">

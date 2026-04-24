@@ -342,6 +342,7 @@ function Index() {
 
   const pasteClipboard = () => {
     if (!clipboard) return;
+    beginHistory();
     if (clipboard.kind === "furniture") {
       const dup = { ...clipboard.data, id: uid(), x: clipboard.data.x + 30, y: clipboard.data.y + 30 };
       setState(s => ({ ...s, furniture: [...s.furniture, dup] }));
@@ -362,6 +363,7 @@ function Index() {
   const toggleLockSelection = () => {
     const ids = multiSelection.length > 0 ? multiSelection : (selection && "id" in selection ? [selection.id] : []);
     if (ids.length === 0) return;
+    beginHistory();
     setState(s => {
       const allLocked = ids.every(i => s.locked.includes(i));
       return { ...s, locked: allLocked ? s.locked.filter(i => !ids.includes(i)) : Array.from(new Set([...s.locked, ...ids])) };
@@ -371,6 +373,7 @@ function Index() {
 
   const groupSelection = () => {
     if (multiSelection.length < 2) return;
+    beginHistory();
     const gid = uid();
     setState(s => ({ ...s, groups: { ...s.groups, [gid]: [...multiSelection] } }));
     setCtxMenu(null);
@@ -378,6 +381,7 @@ function Index() {
 
   const ungroupSelection = () => {
     const ids = multiSelection.length > 0 ? multiSelection : (selection && "id" in selection ? [selection.id] : []);
+    beginHistory();
     setState(s => {
       const next = { ...s.groups };
       for (const gid of Object.keys(next)) {
@@ -391,6 +395,7 @@ function Index() {
   /** Reorder selected furniture in z-order. front/back move one step, top/bottom go all the way. */
   const reorder = (dir: "up" | "down" | "front" | "back") => {
     if (!selection || selection.kind !== "furniture") return;
+    beginHistory();
     setState(s => {
       const idx = s.furniture.findIndex(f => f.id === selection.id);
       if (idx < 0) return s;
@@ -408,6 +413,7 @@ function Index() {
   };
 
   const toggleOrderable = (id: string) => {
+    beginHistory();
     setState(s => ({ ...s, furniture: s.furniture.map(f => f.id === id ? { ...f, orderable: !f.orderable } : f) }));
   };
 

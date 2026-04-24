@@ -313,6 +313,7 @@ export function FloorCanvas(p: Props) {
                 p.onSelect({ kind: "room", id: r.id }, e.shiftKey);
                 if (isLocked) return;
                 const { x, y } = toSvg(e.clientX, e.clientY);
+                p.onBeginEdit?.();
                 setDrag({ kind: "moveR", id: r.id, offX: x - r.x, offY: y - r.y });
               }}
               onContextMenu={(e) => {
@@ -343,6 +344,7 @@ export function FloorCanvas(p: Props) {
                 e.stopPropagation();
                 p.onSelect({ kind: "partition", id: pt.id });
                 const { x, y } = toSvg(e.clientX, e.clientY);
+                p.onBeginEdit?.();
                 setDrag({ kind: "moveP", id: pt.id, offX: x, offY: y, orig: pt });
               }}
               onContextMenu={(e) => {
@@ -363,6 +365,7 @@ export function FloorCanvas(p: Props) {
                       style={{ cursor: "grab" }}
                       onMouseDown={(e) => {
                         e.stopPropagation();
+                        p.onBeginEdit?.();
                         setDrag({ kind: "endP", id: pt.id, which: w as 1 | 2 });
                       }}
                     />
@@ -390,6 +393,7 @@ export function FloorCanvas(p: Props) {
                 e.stopPropagation();
                 p.onSelect({ kind: "door", id: d.id });
                 const { x, y } = toSvg(e.clientX, e.clientY);
+                p.onBeginEdit?.();
                 setDrag({ kind: "moveD", id: d.id, offX: x - d.x, offY: y - d.y });
               }}
               onContextMenu={(e) => {
@@ -403,6 +407,7 @@ export function FloorCanvas(p: Props) {
                 style={{ cursor: "grab" }}
                 onMouseDown={(e) => {
                   e.stopPropagation();
+                  p.onBeginEdit?.();
                   setDrag({ kind: "rotateD", id: d.id, cx: d.x, cy: d.y });
                 }}
               />
@@ -458,6 +463,7 @@ export function FloorCanvas(p: Props) {
                 p.onSelect({ kind: "furniture", id: f.id }, e.shiftKey);
                 if (isLocked) return;
                 const { x, y } = toSvg(e.clientX, e.clientY);
+                p.onBeginEdit?.();
                 setDrag({ kind: "moveF", id: f.id, offX: x - f.x, offY: y - f.y });
               }}
               onMouseEnter={() => p.onHoverFurniture?.(f)}
@@ -518,6 +524,7 @@ export function FloorCanvas(p: Props) {
                 onMouseDown={(e) => {
                   e.stopPropagation();
                   const { x, y } = toSvg(e.clientX, e.clientY);
+                  p.onBeginEdit?.();
                   setDrag({ kind: "resizeF", id: sel.id, handle: h as string, sx: x, sy: y, orig: sel });
                 }}
               />
@@ -550,6 +557,7 @@ export function FloorCanvas(p: Props) {
                 onMouseDown={(e) => {
                   e.stopPropagation();
                   const { x, y } = toSvg(e.clientX, e.clientY);
+                  p.onBeginEdit?.();
                   setDrag({ kind: "resizeR", id: r.id, handle: h as string, sx: x, sy: y, orig: r });
                 }}
               />

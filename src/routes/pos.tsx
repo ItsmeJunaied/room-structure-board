@@ -2,12 +2,12 @@ import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import {
   Home, Scissors, UtensilsCrossed, LogOut, Search, Plus, Minus, Trash2, Receipt, Clock,
-  Pencil, User as UserIcon, Wallet, BadgeCheck, CircleDot, BarChart3,
+  Pencil, User as UserIcon, Wallet, BadgeCheck, CircleDot, BarChart3, CalendarDays, Users,
 } from "lucide-react";
 import { getCurrentUser, logout } from "@/lib/auth";
 import {
-  loadBoards, boardHasContent, loadOrders, saveOrders, loadBarbers,
-  type BoardState, type Order, type OrderLine,
+  loadBoards, boardHasContent, loadOrders, saveOrders, loadBarbers, loadReservations,
+  type BoardState, type Order, type OrderLine, type Reservation,
 } from "@/lib/storage";
 import { menuFor, type MenuItem } from "@/lib/menu-data";
 import { FloorCanvas } from "@/components/FloorCanvas";
@@ -28,6 +28,7 @@ function POSPage() {
 
   const [board, setBoard] = useState<BoardState | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
+  const [reservations, setReservations] = useState<Reservation[]>([]);
   const [activeSpot, setActiveSpot] = useState<Furniture | null>(null);
   const [hoverSpot, setHoverSpot] = useState<Furniture | null>(null);
   const [search, setSearch] = useState("");
@@ -38,6 +39,7 @@ function POSPage() {
     const all = loadBoards(user.email);
     setBoard(all ? all[boardKind] : null);
     setOrders(loadOrders(user.email));
+    setReservations(loadReservations(user.email));
   }, [user, boardKind]);
 
   const barbers = useMemo(() => user ? loadBarbers(user.email, role) : [], [user, role]);

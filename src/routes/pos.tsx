@@ -517,3 +517,20 @@ function Legend({ color, label }: { color: string; label: string }) {
     </span>
   );
 }
+
+function CountChip({ Icon, label, value, tone }: {
+  Icon: typeof Clock; label: string; value: number; tone: "primary" | "amber" | "muted";
+}) {
+  const cls =
+    tone === "primary" ? "bg-primary/10 text-primary border-primary/30" :
+    tone === "amber"   ? "bg-amber-500/10 text-amber-700 border-amber-500/30 dark:text-amber-400" :
+                         "bg-secondary text-muted-foreground border-border";
+  return (
+    <span title={label} className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-1 text-[11px] font-medium ${cls}`}>
+      <Icon className="h-3 w-3" />
+      <span className="hidden lg:inline">{label}</span>
+      <span className="font-bold">{value}</span>
+    </span>
+  );
+}
+

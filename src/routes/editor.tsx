@@ -207,7 +207,11 @@ function Index() {
 
   const handleSelect = (s: Selection, additive?: boolean) => {
     if (additive && s && "id" in s) {
-      setMultiSelection(prev => prev.includes(s.id) ? prev.filter(i => i !== s.id) : [...prev, s.id]);
+      setMultiSelection(prev => {
+        // Seed with current single selection so shift+click extends, not resets
+        const base = prev.length > 0 ? prev : (selection && "id" in selection ? [selection.id] : []);
+        return base.includes(s.id) ? base.filter(i => i !== s.id) : [...base, s.id];
+      });
       setSelection(s);
     } else {
       setSelection(s);

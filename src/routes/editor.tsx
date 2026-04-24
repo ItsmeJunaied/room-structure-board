@@ -290,6 +290,7 @@ function Index() {
   const deleteSelection = () => {
     const ids = multiSelection.length > 0 ? multiSelection : (selection && "id" in selection ? [selection.id] : []);
     if (ids.length === 0) return;
+    beginHistory();
     setState(s => ({
       ...s,
       furniture: s.furniture.filter(x => !ids.includes(x.id)),

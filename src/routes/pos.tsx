@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import {
   Home, Scissors, UtensilsCrossed, LogOut, Search, Plus, Minus, Trash2, Receipt, Clock,
-  Pencil, User as UserIcon, Wallet, BadgeCheck, CircleDot,
+  Pencil, User as UserIcon, Wallet, BadgeCheck, CircleDot, BarChart3,
 } from "lucide-react";
 import { getCurrentUser, logout } from "@/lib/auth";
 import {
@@ -180,9 +180,10 @@ function POSPage() {
               {role === "salon" ? "Salon" : "Restaurant"}
             </span>
             <nav className="ml-3 hidden items-center gap-1 md:flex">
-              <NavTab to="/pos" icon={Receipt} label="POS" active />
-              <NavTab to="/user" icon={UserIcon} label="Staff" />
-              <NavTab to="/expense" icon={Wallet} label="Expense" />
+              <NavTab to="/pos"     icon={Receipt}   label="POS" active />
+              <NavTab to="/sales"   icon={BarChart3} label="Sales" />
+              <NavTab to="/user"    icon={UserIcon}  label="Staff" />
+              <NavTab to="/expense" icon={Wallet}    label="Expense" />
             </nav>
           </div>
 

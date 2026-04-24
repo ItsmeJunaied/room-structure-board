@@ -99,7 +99,7 @@ export function FloorCanvas(p: Props) {
   useEffect(() => {
     const svg = svgRef.current; if (!svg) return;
     const onWheel = (e: WheelEvent) => {
-      if (!e.ctrlKey && !e.metaKey) return;
+      // Always zoom on scroll inside the canvas (Figma-like). Ctrl/meta still works.
       e.preventDefault();
       const { x: mx, y: my } = toSvg(e.clientX, e.clientY);
       const factor = e.deltaY > 0 ? 1.12 : 1 / 1.12;
@@ -481,6 +481,11 @@ export function FloorCanvas(p: Props) {
               <circle cx={f.x + f.w - 6} cy={f.y + 6} r={5}
                 fill={status === "active" ? "oklch(0.62 0.16 152)" : status === "reserved" ? "oklch(0.7 0.18 60)" : "oklch(0.85 0.005 240)"}
                 stroke="white" strokeWidth={1.5} pointerEvents="none" />
+            )}
+            {/* Multi-selection highlight (so shift+click feedback is visible) */}
+            {sel && (
+              <rect x={f.x - 2} y={f.y - 2} width={f.w + 4} height={f.h + 4}
+                fill="none" stroke="var(--primary)" strokeWidth={2} strokeDasharray="4 3" pointerEvents="none" />
             )}
             {sel && !showLbl && (
               <text x={cx} y={cy + 4} textAnchor="middle" fontSize="10" fill="oklch(0.3 0.05 152)" fontStyle="italic" pointerEvents="none">

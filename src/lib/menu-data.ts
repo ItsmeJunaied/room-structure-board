@@ -9,21 +9,21 @@ export interface MenuItem {
 
 // ---- Salon services (Bangladeshi context) ------------------------------
 export const SALON_MENU: MenuItem[] = [
-  { id: "s1", name: "Classic Haircut", category: "Hair", price: 350, duration: "30 min" },
-  { id: "s2", name: "Premium Hair Style", category: "Hair", price: 750, duration: "45 min" },
-  { id: "s3", name: "Beard Trim & Shape", category: "Beard", price: 250, duration: "20 min" },
-  { id: "s4", name: "Hot Towel Shave", category: "Beard", price: 350, duration: "25 min" },
-  { id: "s5", name: "Hair Color (Black)", category: "Hair", price: 1200, duration: "60 min" },
-  { id: "s6", name: "Hair Spa", category: "Hair", price: 1500, duration: "60 min" },
-  { id: "s7", name: "Keratin Treatment", category: "Hair", price: 4500, duration: "120 min" },
-  { id: "s8", name: "Facial — Herbal", category: "Facial", price: 900, duration: "45 min" },
-  { id: "s9", name: "Facial — Gold Glow", category: "Facial", price: 2200, duration: "60 min" },
-  { id: "s10", name: "Threading (Eyebrow)", category: "Facial", price: 100, duration: "10 min" },
-  { id: "s11", name: "Manicure", category: "Hands & Feet", price: 600, duration: "30 min" },
-  { id: "s12", name: "Pedicure", category: "Hands & Feet", price: 800, duration: "40 min" },
-  { id: "s13", name: "Full Body Massage", category: "Massage", price: 2500, duration: "60 min" },
-  { id: "s14", name: "Head & Shoulder Massage", category: "Massage", price: 800, duration: "30 min" },
-  { id: "s15", name: "Mehedi (Bridal)", category: "Bridal", price: 3500, duration: "90 min" },
+  { id: "s1",  name: "Classic Haircut",        category: "Hair",          price: 350,  duration: "30 min",  image: "https://images.unsplash.com/photo-1622286342621-4bd786c2447c?w=400&q=70" },
+  { id: "s2",  name: "Premium Hair Style",     category: "Hair",          price: 750,  duration: "45 min",  image: "https://images.unsplash.com/photo-1503951914875-452162b0f3f1?w=400&q=70" },
+  { id: "s3",  name: "Beard Trim & Shape",     category: "Beard",         price: 250,  duration: "20 min",  image: "https://images.unsplash.com/photo-1599351431202-1e0f0137899a?w=400&q=70" },
+  { id: "s4",  name: "Hot Towel Shave",        category: "Beard",         price: 350,  duration: "25 min",  image: "https://images.unsplash.com/photo-1621605815971-fbc98d665033?w=400&q=70" },
+  { id: "s5",  name: "Hair Color (Black)",     category: "Hair",          price: 1200, duration: "60 min",  image: "https://images.unsplash.com/photo-1560869713-7d0a29430803?w=400&q=70" },
+  { id: "s6",  name: "Hair Spa",               category: "Hair",          price: 1500, duration: "60 min",  image: "https://images.unsplash.com/photo-1633681926022-84c23e8cb2d6?w=400&q=70" },
+  { id: "s7",  name: "Keratin Treatment",      category: "Hair",          price: 4500, duration: "120 min", image: "https://images.unsplash.com/photo-1595476108010-b4d1f102b1b1?w=400&q=70" },
+  { id: "s8",  name: "Facial — Herbal",        category: "Facial",        price: 900,  duration: "45 min",  image: "https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?w=400&q=70" },
+  { id: "s9",  name: "Facial — Gold Glow",     category: "Facial",        price: 2200, duration: "60 min",  image: "https://images.unsplash.com/photo-1616394584738-fc6e612e71b9?w=400&q=70" },
+  { id: "s10", name: "Threading (Eyebrow)",    category: "Facial",        price: 100,  duration: "10 min",  image: "https://images.unsplash.com/photo-1487412947147-5cebf100ffc2?w=400&q=70" },
+  { id: "s11", name: "Manicure",               category: "Hands & Feet",  price: 600,  duration: "30 min",  image: "https://images.unsplash.com/photo-1604654894610-df63bc536371?w=400&q=70" },
+  { id: "s12", name: "Pedicure",               category: "Hands & Feet",  price: 800,  duration: "40 min",  image: "https://images.unsplash.com/photo-1610992015732-2449b76344bc?w=400&q=70" },
+  { id: "s13", name: "Full Body Massage",      category: "Massage",       price: 2500, duration: "60 min",  image: "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?w=400&q=70" },
+  { id: "s14", name: "Head & Shoulder Massage",category: "Massage",       price: 800,  duration: "30 min",  image: "https://images.unsplash.com/photo-1591343395082-e120087004b4?w=400&q=70" },
+  { id: "s15", name: "Mehedi (Bridal)",        category: "Bridal",        price: 3500, duration: "90 min",  image: "https://images.unsplash.com/photo-1610465299996-30f240ac2b1c?w=400&q=70" },
 ];
 
 // ---- Restaurant menu (Bangladeshi context) -----------------------------

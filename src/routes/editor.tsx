@@ -803,9 +803,10 @@ function Index() {
                   onUpdateRoom={updateR}
                   onUpdateDoor={updateD}
                   onUpdatePartition={updateP}
-                  onAddRoom={(r) => setState(s => ({ ...s, rooms: [...s.rooms, { ...r, name: ROOM_PRESETS[roomPresetIdx].name, fill: ROOM_PRESETS[roomPresetIdx].fill }] }))}
-                  onAddDoor={(d) => setState(s => ({ ...s, doors: [...s.doors, d] }))}
-                  onAddPartition={(pt) => setState(s => ({ ...s, partitions: [...s.partitions, pt] }))}
+                  onBeginEdit={beginHistory}
+                  onAddRoom={(r) => { beginHistory(); setState(s => ({ ...s, rooms: [...s.rooms, { ...r, name: ROOM_PRESETS[roomPresetIdx].name, fill: ROOM_PRESETS[roomPresetIdx].fill }] })); }}
+                  onAddDoor={(d) => { beginHistory(); setState(s => ({ ...s, doors: [...s.doors, d] })); }}
+                  onAddPartition={(pt) => { beginHistory(); setState(s => ({ ...s, partitions: [...s.partitions, pt] })); }}
                   onSetTool={setTool}
                   onContextMenu={onContextMenu}
                   onMarquee={onMarquee}

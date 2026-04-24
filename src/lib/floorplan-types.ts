@@ -84,7 +84,7 @@ export const DEFAULTS: Record<FurnitureType, Omit<Furniture, "id" | "x" | "y">> 
   bed:      { type: "bed",      name: "Bed",       w: 160, h: 120, rotation: 0, fill: "#B7D9C0", stroke: "#1B1A1A", opacity: 0.85, radius: 8 },
   sofa:     { type: "sofa",     name: "Sofa",      w: 140, h: 56,  rotation: 0, fill: "#EDEDE8", stroke: "#1B1A1A", opacity: 1,    radius: 8 },
   chair:    { type: "chair",    name: "Chair",     w: 44,  h: 44,  rotation: 0, fill: "#F59E5C", stroke: "#7A3E15", opacity: 1,    radius: 8 },
-  "door-decor": { type: "door-decor", name: "Door", w: 60, h: 14, rotation: 0, fill: "#A0612A", stroke: "#3D2412", opacity: 1, radius: 2 },
+  "door-decor": { type: "door-decor", name: "Door", w: 60, h: 14, rotation: 0, fill: "#F5C518", stroke: "#8A6A00", opacity: 1, radius: 2 },
   table:    { type: "table",    name: "Table",     w: 80,  h: 80,  rotation: 0, fill: "#F5F1EA", stroke: "#1B1A1A", opacity: 1,    radius: 40 },
   cupboard: { type: "cupboard", name: "Cupboard",  w: 140, h: 36,  rotation: 0, fill: "#F2F2EE", stroke: "#1B1A1A", opacity: 1,    radius: 2 },
   wardrobe: { type: "wardrobe", name: "Wardrobe",  w: 44,  h: 120, rotation: 0, fill: "#F2F2EE", stroke: "#1B1A1A", opacity: 1,    radius: 2 },

@@ -99,7 +99,7 @@ export function FloorCanvas(p: Props) {
   useEffect(() => {
     const svg = svgRef.current; if (!svg) return;
     const onWheel = (e: WheelEvent) => {
-      if (!e.ctrlKey && !e.metaKey) return;
+      // Always zoom on scroll inside the canvas (Figma-like). Ctrl/meta still works.
       e.preventDefault();
       const { x: mx, y: my } = toSvg(e.clientX, e.clientY);
       const factor = e.deltaY > 0 ? 1.12 : 1 / 1.12;

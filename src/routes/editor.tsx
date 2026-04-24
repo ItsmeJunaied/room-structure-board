@@ -238,6 +238,7 @@ function Index() {
     state.rooms.find(r => px >= r.x && px <= r.x + r.w && py >= r.y && py <= r.y + r.h);
 
   const addFurniture = (type: FurnitureType) => {
+    beginHistory();
     const target = state.rooms[0];
     const def = DEFAULTS[type];
     const cx = target ? target.x + target.w / 2 : 600;

@@ -531,7 +531,7 @@ export function FloorCanvas(p: Props) {
             ))}
             <line x1={cx} y1={sel.y} x2={cx} y2={sel.y - 22} stroke="var(--primary)" strokeWidth="1" />
             <circle cx={cx} cy={sel.y - 28} r="6" fill="white" stroke="var(--primary)" strokeWidth="1.5" style={{ cursor: "grab" }}
-              onMouseDown={(e) => { e.stopPropagation(); setDrag({ kind: "rotateF", id: sel.id, cx, cy }); }}
+              onMouseDown={(e) => { e.stopPropagation(); p.onBeginEdit?.(); setDrag({ kind: "rotateF", id: sel.id, cx, cy }); }}
             />
           </g>
         );

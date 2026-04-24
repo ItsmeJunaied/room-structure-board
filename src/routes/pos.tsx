@@ -203,17 +203,21 @@ function POSPage() {
               {role === "salon" ? "Salon" : "Restaurant"}
             </span>
             <nav className="ml-3 hidden items-center gap-1 md:flex">
-              <NavTab to="/pos"     icon={Receipt}   label="POS" active />
-              <NavTab to="/sales"   icon={BarChart3} label="Sales" />
-              <NavTab to="/user"    icon={UserIcon}  label="Staff" />
-              <NavTab to="/expense" icon={Wallet}    label="Expense" />
+              <NavTab to="/pos"          icon={Receipt}      label="POS" active />
+              <NavTab to="/reservations" icon={CalendarDays} label="Reservations" />
+              <NavTab to="/sales"        icon={BarChart3}    label="Sales" />
+              <NavTab to="/user"         icon={UserIcon}     label="Staff" />
+              <NavTab to="/expense"      icon={Wallet}       label="Expense" />
             </nav>
           </div>
 
-          <div className="flex items-center gap-3 text-xs text-muted-foreground">
-            <span className="hidden md:inline">
-              {spots.length} {spotLabelSingular.toLowerCase()}{spots.length === 1 ? "" : "s"} · {orders.filter(o => o.status === "open").length} open
-            </span>
+          <div className="flex items-center gap-2 text-xs">
+            {/* Live status counters */}
+            <div className="hidden items-center gap-1.5 md:flex">
+              <CountChip Icon={Clock}        label="In progress" value={counts.inProgress} tone="primary" />
+              <CountChip Icon={BadgeCheck}   label="Reserved"    value={counts.reservedCount} tone="amber" />
+              <CountChip Icon={Users}        label="Waiting"     value={counts.waiting} tone="muted" />
+            </div>
             <Link to="/editor" className="flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-foreground hover:bg-secondary">
               <Pencil className="h-3.5 w-3.5" /> Edit floor plan
             </Link>

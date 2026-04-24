@@ -123,45 +123,44 @@ function Index() {
   const state = boards[board];
   const lockedSet = useMemo(() => new Set(state.locked), [state.locked]);
 
+  // Track whether the next setState should commit a history snapshot.
+  // Set true via beginHistory() before discrete or drag operations.
+  const pendingCheckpointRef = useRef(false);
+
   const setState = (patch: Partial<BoardState> | ((s: BoardState) => BoardState)) => {
-    setBoards(prev => {
-      const cur = prev[board];
-      const next = typeof patch === "function" ? patch(cur) : { ...cur, ...patch };
-      if (next === cur) return prev;
-      // push previous state to history, clear redo
+    const cur = boards[board];
+    const next = typeof patch === "function" ? patch(cur) : { ...cur, ...patch };
+    if (next === cur) return;
+    if (pendingCheckpointRef.current) {
+      pendingCheckpointRef.current = false;
       setHistory(h => ({ ...h, [board]: [...h[board], cur].slice(-HISTORY_LIMIT) }));
       setFuture(f => ({ ...f, [board]: [] }));
-      return { ...prev, [board]: next };
-    });
+    }
+    setBoards(prev => ({ ...prev, [board]: next }));
   };
 
+  /** Mark that the next setState is the start of a new undoable action. */
+  const beginHistory = () => { pendingCheckpointRef.current = true; };
+
   const undo = () => {
-    setHistory(h => {
-      const stack = h[board];
-      if (stack.length === 0) return h;
-      const prev = stack[stack.length - 1];
-      const newStack = stack.slice(0, -1);
-      setBoards(b => {
-        setFuture(f => ({ ...f, [board]: [...f[board], b[board]].slice(-HISTORY_LIMIT) }));
-        return { ...b, [board]: prev };
-      });
-      return { ...h, [board]: newStack };
-    });
+    const stack = history[board];
+    if (stack.length === 0) return;
+    const prev = stack[stack.length - 1];
+    const cur = boards[board];
+    setHistory(h => ({ ...h, [board]: h[board].slice(0, -1) }));
+    setFuture(f => ({ ...f, [board]: [...f[board], cur].slice(-HISTORY_LIMIT) }));
+    setBoards(b => ({ ...b, [board]: prev }));
     setSelection(null); setMultiSelection([]); setCtxMenu(null);
   };
 
   const redo = () => {
-    setFuture(f => {
-      const stack = f[board];
-      if (stack.length === 0) return f;
-      const next = stack[stack.length - 1];
-      const newStack = stack.slice(0, -1);
-      setBoards(b => {
-        setHistory(h => ({ ...h, [board]: [...h[board], b[board]].slice(-HISTORY_LIMIT) }));
-        return { ...b, [board]: next };
-      });
-      return { ...f, [board]: newStack };
-    });
+    const stack = future[board];
+    if (stack.length === 0) return;
+    const next = stack[stack.length - 1];
+    const cur = boards[board];
+    setFuture(f => ({ ...f, [board]: f[board].slice(0, -1) }));
+    setHistory(h => ({ ...h, [board]: [...h[board], cur].slice(-HISTORY_LIMIT) }));
+    setBoards(b => ({ ...b, [board]: next }));
     setSelection(null); setMultiSelection([]); setCtxMenu(null);
   };
 

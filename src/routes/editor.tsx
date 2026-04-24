@@ -667,6 +667,12 @@ function Index() {
 
           <div className="flex items-center gap-2">
             <span className="hidden md:inline text-[11px] text-muted-foreground">{savedAt ? "Saved ✓" : ""}</span>
+            <button onClick={undo} disabled={history[board].length === 0} title="Undo (Ctrl+Z)" className="rounded-md p-2 hover:bg-secondary disabled:opacity-40 disabled:hover:bg-transparent">
+              <Undo2 className="h-4 w-4" />
+            </button>
+            <button onClick={redo} disabled={future[board].length === 0} title="Redo (Ctrl+Y)" className="rounded-md p-2 hover:bg-secondary disabled:opacity-40 disabled:hover:bg-transparent">
+              <Redo2 className="h-4 w-4" />
+            </button>
             <button onClick={clearAll} className="rounded-md px-2 py-1.5 text-xs text-muted-foreground hover:bg-secondary hover:text-foreground">Clear</button>
             <button onClick={() => setDark(d => !d)} className="rounded-md p-2 hover:bg-secondary">
               {dark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}

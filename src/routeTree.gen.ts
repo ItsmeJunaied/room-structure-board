@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as UserRouteImport } from './routes/user'
 import { Route as SignupRouteImport } from './routes/signup'
+import { Route as SalesRouteImport } from './routes/sales'
 import { Route as PosRouteImport } from './routes/pos'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as ExpenseRouteImport } from './routes/expense'
@@ -25,6 +26,11 @@ const UserRoute = UserRouteImport.update({
 const SignupRoute = SignupRouteImport.update({
   id: '/signup',
   path: '/signup',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SalesRoute = SalesRouteImport.update({
+  id: '/sales',
+  path: '/sales',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PosRoute = PosRouteImport.update({
@@ -59,6 +65,7 @@ export interface FileRoutesByFullPath {
   '/expense': typeof ExpenseRoute
   '/login': typeof LoginRoute
   '/pos': typeof PosRoute
+  '/sales': typeof SalesRoute
   '/signup': typeof SignupRoute
   '/user': typeof UserRoute
 }
@@ -68,6 +75,7 @@ export interface FileRoutesByTo {
   '/expense': typeof ExpenseRoute
   '/login': typeof LoginRoute
   '/pos': typeof PosRoute
+  '/sales': typeof SalesRoute
   '/signup': typeof SignupRoute
   '/user': typeof UserRoute
 }
@@ -78,6 +86,7 @@ export interface FileRoutesById {
   '/expense': typeof ExpenseRoute
   '/login': typeof LoginRoute
   '/pos': typeof PosRoute
+  '/sales': typeof SalesRoute
   '/signup': typeof SignupRoute
   '/user': typeof UserRoute
 }
@@ -89,10 +98,19 @@ export interface FileRouteTypes {
     | '/expense'
     | '/login'
     | '/pos'
+    | '/sales'
     | '/signup'
     | '/user'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/editor' | '/expense' | '/login' | '/pos' | '/signup' | '/user'
+  to:
+    | '/'
+    | '/editor'
+    | '/expense'
+    | '/login'
+    | '/pos'
+    | '/sales'
+    | '/signup'
+    | '/user'
   id:
     | '__root__'
     | '/'
@@ -100,6 +118,7 @@ export interface FileRouteTypes {
     | '/expense'
     | '/login'
     | '/pos'
+    | '/sales'
     | '/signup'
     | '/user'
   fileRoutesById: FileRoutesById
@@ -110,6 +129,7 @@ export interface RootRouteChildren {
   ExpenseRoute: typeof ExpenseRoute
   LoginRoute: typeof LoginRoute
   PosRoute: typeof PosRoute
+  SalesRoute: typeof SalesRoute
   SignupRoute: typeof SignupRoute
   UserRoute: typeof UserRoute
 }
@@ -128,6 +148,13 @@ declare module '@tanstack/react-router' {
       path: '/signup'
       fullPath: '/signup'
       preLoaderRoute: typeof SignupRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sales': {
+      id: '/sales'
+      path: '/sales'
+      fullPath: '/sales'
+      preLoaderRoute: typeof SalesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/pos': {
@@ -174,6 +201,7 @@ const rootRouteChildren: RootRouteChildren = {
   ExpenseRoute: ExpenseRoute,
   LoginRoute: LoginRoute,
   PosRoute: PosRoute,
+  SalesRoute: SalesRoute,
   SignupRoute: SignupRoute,
   UserRoute: UserRoute,
 }

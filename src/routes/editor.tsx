@@ -163,17 +163,22 @@ function Index() {
   const updateR = (id: string, patch: Partial<Room>) =>
     setState(s => {
       const cur = s.rooms.find(r => r.id === id);
-      const dx = cur && patch.x !== undefined ? patch.x - cur.x : 0;
-      const dy = cur && patch.y !== undefined ? patch.y - cur.y : 0;
+      if (!cur) return s;
+      const dx = patch.x !== undefined ? patch.x - cur.x : 0;
+      const dy = patch.y !== undefined ? patch.y - cur.y : 0;
+      // A pure move = position changed but size did NOT change.
+      // A resize (even from left/top, where x changes too) must NOT drag children.
+      const isResize = patch.w !== undefined || patch.h !== undefined;
+      const isMove = !isResize && (dx !== 0 || dy !== 0);
       const groupId = Object.keys(s.groups).find(gid => s.groups[gid].includes(id));
       const groupIds = groupId ? s.groups[groupId] : [];
       const rooms = s.rooms.map(r => {
         if (r.id === id) return { ...r, ...patch };
-        if ((dx || dy) && groupIds.includes(r.id)) return { ...r, x: r.x + dx, y: r.y + dy };
+        if (isMove && groupIds.includes(r.id)) return { ...r, x: r.x + dx, y: r.y + dy };
         return r;
       });
-      // Move furniture attached to this room OR in same group as the room
-      const furniture = (dx || dy)
+      // Move furniture attached to this room OR in same group as the room — ONLY on pure moves
+      const furniture = isMove
         ? s.furniture.map(f => (f.roomId === id || groupIds.includes(f.id)) ? { ...f, x: f.x + dx, y: f.y + dy } : f)
         : s.furniture;
       return { ...s, rooms, furniture };

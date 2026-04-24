@@ -188,19 +188,26 @@ function Index() {
       orderable: ORDERABLE_BY_DEFAULT.includes(type),
       roomId: target?.id,
     };
-    // Auto-pair: salon chair gets a mirror placed in front of it
+    // Auto-pair: salon chair gets a mirror placed at the leg side (bottom)
     const extras: Furniture[] = [];
     if (type === "salon-chair") {
       const mdef = DEFAULTS.mirror;
       extras.push({
         ...mdef, id: uid(),
         x: item.x + (item.w - mdef.w) / 2,
-        y: item.y - mdef.h - 16,
+        y: item.y + item.h + 10,
         orderable: false,
         roomId: target?.id,
       });
     }
-    setState(s => ({ ...s, furniture: [...s.furniture, item, ...extras] }));
+    setState(s => {
+      const groups = { ...s.groups };
+      // Permanently group salon-chair with its mirror
+      if (type === "salon-chair" && extras.length > 0) {
+        groups[uid()] = [item.id, ...extras.map(e => e.id)];
+      }
+      return { ...s, furniture: [...s.furniture, item, ...extras], groups };
+    });
     setSelection({ kind: "furniture", id: item.id });
     setTool("select");
   };

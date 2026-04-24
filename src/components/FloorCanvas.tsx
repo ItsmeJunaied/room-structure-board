@@ -37,6 +37,8 @@ interface Props {
   onAddDoor: (d: Door) => void;
   onAddPartition: (p: Partition) => void;
   onSetTool: (t: Tool) => void;
+  /** Called once at the start of a user-driven edit (drag move/resize/rotate) so the parent can checkpoint history. */
+  onBeginEdit?: () => void;
   onContextMenu?: (e: ContextMenuEvent) => void;
   /** Called when user drags a marquee on empty canvas. Box is in SVG coords. */
   onMarquee?: (box: { x: number; y: number; w: number; h: number }, additive: boolean) => void;
@@ -311,6 +313,7 @@ export function FloorCanvas(p: Props) {
                 p.onSelect({ kind: "room", id: r.id }, e.shiftKey);
                 if (isLocked) return;
                 const { x, y } = toSvg(e.clientX, e.clientY);
+                p.onBeginEdit?.();
                 setDrag({ kind: "moveR", id: r.id, offX: x - r.x, offY: y - r.y });
               }}
               onContextMenu={(e) => {
@@ -341,6 +344,7 @@ export function FloorCanvas(p: Props) {
                 e.stopPropagation();
                 p.onSelect({ kind: "partition", id: pt.id });
                 const { x, y } = toSvg(e.clientX, e.clientY);
+                p.onBeginEdit?.();
                 setDrag({ kind: "moveP", id: pt.id, offX: x, offY: y, orig: pt });
               }}
               onContextMenu={(e) => {
@@ -361,6 +365,7 @@ export function FloorCanvas(p: Props) {
                       style={{ cursor: "grab" }}
                       onMouseDown={(e) => {
                         e.stopPropagation();
+                        p.onBeginEdit?.();
                         setDrag({ kind: "endP", id: pt.id, which: w as 1 | 2 });
                       }}
                     />
@@ -388,6 +393,7 @@ export function FloorCanvas(p: Props) {
                 e.stopPropagation();
                 p.onSelect({ kind: "door", id: d.id });
                 const { x, y } = toSvg(e.clientX, e.clientY);
+                p.onBeginEdit?.();
                 setDrag({ kind: "moveD", id: d.id, offX: x - d.x, offY: y - d.y });
               }}
               onContextMenu={(e) => {
@@ -401,6 +407,7 @@ export function FloorCanvas(p: Props) {
                 style={{ cursor: "grab" }}
                 onMouseDown={(e) => {
                   e.stopPropagation();
+                  p.onBeginEdit?.();
                   setDrag({ kind: "rotateD", id: d.id, cx: d.x, cy: d.y });
                 }}
               />
@@ -456,6 +463,7 @@ export function FloorCanvas(p: Props) {
                 p.onSelect({ kind: "furniture", id: f.id }, e.shiftKey);
                 if (isLocked) return;
                 const { x, y } = toSvg(e.clientX, e.clientY);
+                p.onBeginEdit?.();
                 setDrag({ kind: "moveF", id: f.id, offX: x - f.x, offY: y - f.y });
               }}
               onMouseEnter={() => p.onHoverFurniture?.(f)}
@@ -516,13 +524,14 @@ export function FloorCanvas(p: Props) {
                 onMouseDown={(e) => {
                   e.stopPropagation();
                   const { x, y } = toSvg(e.clientX, e.clientY);
+                  p.onBeginEdit?.();
                   setDrag({ kind: "resizeF", id: sel.id, handle: h as string, sx: x, sy: y, orig: sel });
                 }}
               />
             ))}
             <line x1={cx} y1={sel.y} x2={cx} y2={sel.y - 22} stroke="var(--primary)" strokeWidth="1" />
             <circle cx={cx} cy={sel.y - 28} r="6" fill="white" stroke="var(--primary)" strokeWidth="1.5" style={{ cursor: "grab" }}
-              onMouseDown={(e) => { e.stopPropagation(); setDrag({ kind: "rotateF", id: sel.id, cx, cy }); }}
+              onMouseDown={(e) => { e.stopPropagation(); p.onBeginEdit?.(); setDrag({ kind: "rotateF", id: sel.id, cx, cy }); }}
             />
           </g>
         );
@@ -548,6 +557,7 @@ export function FloorCanvas(p: Props) {
                 onMouseDown={(e) => {
                   e.stopPropagation();
                   const { x, y } = toSvg(e.clientX, e.clientY);
+                  p.onBeginEdit?.();
                   setDrag({ kind: "resizeR", id: r.id, handle: h as string, sx: x, sy: y, orig: r });
                 }}
               />
@@ -575,6 +585,8 @@ function FurnitureShape({ f, onMouseDown, onContextMenu, onMouseEnter, onMouseLe
     case "bed":
       return (
         <g {...handlers} style={{ cursor: "move" }}>
+          {/* full-bounds hit target */}
+          <rect x={f.x} y={f.y} width={f.w} height={f.h} fill="transparent" />
           <rect x={f.x} y={f.y} width={f.w} height={f.h} rx={f.radius} fill={f.fill} opacity={f.opacity} stroke={f.stroke} strokeWidth={1.5} />
           <rect x={f.x} y={f.y} width={f.w} height={f.h} rx={f.radius} fill="url(#bedTexture)" opacity={0.4} pointerEvents="none" />
           <rect x={f.x + 8} y={f.y + 6} width={f.w * 0.32} height={22} rx={4} fill="white" opacity={0.7} stroke={f.stroke} strokeWidth={0.8} pointerEvents="none" />
@@ -585,6 +597,8 @@ function FurnitureShape({ f, onMouseDown, onContextMenu, onMouseEnter, onMouseLe
     case "waiting-sofa":
       return (
         <g {...handlers} style={{ cursor: "move" }}>
+          {/* full-bounds hit target */}
+          <rect x={f.x} y={f.y} width={f.w} height={f.h} fill="transparent" />
           <rect x={f.x} y={f.y} width={f.w} height={f.h * 0.35} rx={f.radius} fill={f.fill} opacity={f.opacity} stroke={f.stroke} strokeWidth={1.2} />
           <rect x={f.x + 4} y={f.y + f.h * 0.32} width={f.w - 8} height={f.h * 0.6} rx={Math.max(2, f.radius - 2)} fill={f.fill} opacity={Math.min(1, f.opacity + 0.05)} stroke={f.stroke} strokeWidth={1.2} pointerEvents="none" />
           {[0, 1, 2].map(i => {
@@ -598,6 +612,8 @@ function FurnitureShape({ f, onMouseDown, onContextMenu, onMouseEnter, onMouseLe
     case "salon-chair":
       return (
         <g {...handlers} style={{ cursor: "move" }}>
+         {/* full-bounds hit target */}
+         <rect x={f.x} y={f.y} width={f.w} height={f.h} fill="transparent" />
           {/* invisible full-bounds hit target so clicks anywhere on chair register */}
           <rect x={f.x} y={f.y} width={f.w} height={f.h} fill="transparent" />
           <ellipse cx={cx} cy={f.y + f.h * 0.94} rx={f.w * 0.28} ry={f.h * 0.06} fill={f.stroke} opacity={0.35} pointerEvents="none" />
@@ -614,6 +630,8 @@ function FurnitureShape({ f, onMouseDown, onContextMenu, onMouseEnter, onMouseLe
     case "shampoo-chair":
       return (
         <g {...handlers} style={{ cursor: "move" }}>
+         {/* full-bounds hit target */}
+         <rect x={f.x} y={f.y} width={f.w} height={f.h} fill="transparent" />
           {/* invisible full-bounds hit target */}
           <rect x={f.x} y={f.y} width={f.w} height={f.h} fill="transparent" />
           <ellipse cx={cx} cy={f.y + f.h * 0.14} rx={f.w * 0.42} ry={f.h * 0.1} fill="#E6EEF3" stroke={f.stroke} strokeWidth={1.4} opacity={f.opacity} pointerEvents="none" />
@@ -629,6 +647,8 @@ function FurnitureShape({ f, onMouseDown, onContextMenu, onMouseEnter, onMouseLe
     case "massage-bed":
       return (
         <g {...handlers} style={{ cursor: "move" }}>
+          {/* full-bounds hit target */}
+          <rect x={f.x} y={f.y} width={f.w} height={f.h} fill="transparent" />
           <rect x={f.x} y={f.y} width={f.w} height={f.h} rx={f.radius} {...common} />
           <circle cx={f.x + 22} cy={cy} r={Math.min(14, f.h / 3)} fill="white" opacity={0.6} stroke={f.stroke} strokeWidth={1} pointerEvents="none" />
           <line x1={f.x + f.w * 0.45} y1={f.y + 6} x2={f.x + f.w * 0.45} y2={f.y + f.h - 6} stroke={f.stroke} strokeWidth={0.8} opacity={0.5} pointerEvents="none" />
@@ -638,6 +658,8 @@ function FurnitureShape({ f, onMouseDown, onContextMenu, onMouseEnter, onMouseLe
     case "cash-counter":
       return (
         <g {...handlers} style={{ cursor: "move" }}>
+          {/* full-bounds hit target */}
+          <rect x={f.x} y={f.y} width={f.w} height={f.h} fill="transparent" />
           <rect x={f.x} y={f.y} width={f.w} height={f.h} rx={f.radius} {...common} />
           <rect x={f.x + 4} y={f.y + 4} width={f.w - 8} height={f.h * 0.35} rx={2} fill="white" opacity={0.5} stroke={f.stroke} strokeWidth={0.8} pointerEvents="none" />
           <rect x={f.x + f.w * 0.65} y={f.y + 8} width={f.w * 0.25} height={f.h * 0.35} rx={2} fill={f.stroke} opacity={0.85} pointerEvents="none" />
@@ -648,6 +670,8 @@ function FurnitureShape({ f, onMouseDown, onContextMenu, onMouseEnter, onMouseLe
       const r = Math.min(f.w, f.h) / 2;
       return (
         <g {...handlers} style={{ cursor: "move" }}>
+          {/* full-bounds hit target */}
+          <rect x={f.x} y={f.y} width={f.w} height={f.h} fill="transparent" />
           <path d={`M ${cx - r * 0.55} ${f.y + f.h * 0.7} L ${cx - r * 0.45} ${f.y + f.h} L ${cx + r * 0.45} ${f.y + f.h} L ${cx + r * 0.55} ${f.y + f.h * 0.7} Z`}
             fill="#A0612A" stroke={f.stroke} strokeWidth={1} opacity={f.opacity} />
           <circle cx={cx} cy={f.y + f.h * 0.35} r={r * 0.7} fill={f.fill} stroke={f.stroke} strokeWidth={1.2} opacity={f.opacity} />
@@ -661,6 +685,8 @@ function FurnitureShape({ f, onMouseDown, onContextMenu, onMouseEnter, onMouseLe
     case "chair":
       return (
         <g {...handlers} style={{ cursor: "move" }}>
+          {/* full-bounds hit target */}
+          <rect x={f.x} y={f.y} width={f.w} height={f.h} fill="transparent" />
           {/* seat */}
           <rect x={f.x} y={f.y + f.h * 0.18} width={f.w} height={f.h * 0.82} rx={f.radius} fill={f.fill} stroke={f.stroke} strokeWidth={1.4} opacity={f.opacity} />
           {/* cushion highlight */}
@@ -675,6 +701,8 @@ function FurnitureShape({ f, onMouseDown, onContextMenu, onMouseEnter, onMouseLe
     case "door-decor":
       return (
         <g {...handlers} style={{ cursor: "move" }}>
+          {/* full-bounds hit target */}
+          <rect x={f.x} y={f.y} width={f.w} height={f.h} fill="transparent" />
           {/* door frame outer */}
           <rect x={f.x} y={f.y} width={f.w} height={f.h} rx={3} fill={f.fill} stroke={f.stroke} strokeWidth={1.6} opacity={f.opacity} />
           {/* inner panel */}
@@ -697,6 +725,8 @@ function FurnitureShape({ f, onMouseDown, onContextMenu, onMouseEnter, onMouseLe
     case "toilet":
       return (
         <g {...handlers} style={{ cursor: "move" }}>
+          {/* full-bounds hit target */}
+          <rect x={f.x} y={f.y} width={f.w} height={f.h} fill="transparent" />
           <ellipse cx={cx} cy={cy} rx={f.w / 2} ry={f.h / 2} {...common} />
           {f.type === "lamp" && <circle cx={cx} cy={cy} r={Math.min(f.w, f.h) / 4} fill="white" opacity={0.6} pointerEvents="none" />}
           {f.type === "toilet" && <rect x={f.x + 4} y={f.y} width={f.w - 8} height={14} rx={4} fill={f.fill} stroke={f.stroke} strokeWidth={0.8} pointerEvents="none" />}
@@ -705,6 +735,8 @@ function FurnitureShape({ f, onMouseDown, onContextMenu, onMouseEnter, onMouseLe
     case "bathtub":
       return (
         <g {...handlers} style={{ cursor: "move" }}>
+          {/* full-bounds hit target */}
+          <rect x={f.x} y={f.y} width={f.w} height={f.h} fill="transparent" />
           <rect x={f.x} y={f.y} width={f.w} height={f.h} rx={f.radius} {...common} />
           <rect x={f.x + 6} y={f.y + 6} width={f.w - 12} height={f.h - 12} rx={f.radius - 4} fill="white" opacity={0.6} stroke={f.stroke} strokeWidth={0.8} pointerEvents="none" />
         </g>

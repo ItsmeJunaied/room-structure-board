@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { getCurrentUser, logout } from "@/lib/auth";
 import { loadBoards, saveBoards } from "@/lib/storage";
 import {
@@ -123,45 +123,44 @@ function Index() {
   const state = boards[board];
   const lockedSet = useMemo(() => new Set(state.locked), [state.locked]);
 
+  // Track whether the next setState should commit a history snapshot.
+  // Set true via beginHistory() before discrete or drag operations.
+  const pendingCheckpointRef = useRef(false);
+
   const setState = (patch: Partial<BoardState> | ((s: BoardState) => BoardState)) => {
-    setBoards(prev => {
-      const cur = prev[board];
-      const next = typeof patch === "function" ? patch(cur) : { ...cur, ...patch };
-      if (next === cur) return prev;
-      // push previous state to history, clear redo
+    const cur = boards[board];
+    const next = typeof patch === "function" ? patch(cur) : { ...cur, ...patch };
+    if (next === cur) return;
+    if (pendingCheckpointRef.current) {
+      pendingCheckpointRef.current = false;
       setHistory(h => ({ ...h, [board]: [...h[board], cur].slice(-HISTORY_LIMIT) }));
       setFuture(f => ({ ...f, [board]: [] }));
-      return { ...prev, [board]: next };
-    });
+    }
+    setBoards(prev => ({ ...prev, [board]: next }));
   };
 
+  /** Mark that the next setState is the start of a new undoable action. */
+  const beginHistory = () => { pendingCheckpointRef.current = true; };
+
   const undo = () => {
-    setHistory(h => {
-      const stack = h[board];
-      if (stack.length === 0) return h;
-      const prev = stack[stack.length - 1];
-      const newStack = stack.slice(0, -1);
-      setBoards(b => {
-        setFuture(f => ({ ...f, [board]: [...f[board], b[board]].slice(-HISTORY_LIMIT) }));
-        return { ...b, [board]: prev };
-      });
-      return { ...h, [board]: newStack };
-    });
+    const stack = history[board];
+    if (stack.length === 0) return;
+    const prev = stack[stack.length - 1];
+    const cur = boards[board];
+    setHistory(h => ({ ...h, [board]: h[board].slice(0, -1) }));
+    setFuture(f => ({ ...f, [board]: [...f[board], cur].slice(-HISTORY_LIMIT) }));
+    setBoards(b => ({ ...b, [board]: prev }));
     setSelection(null); setMultiSelection([]); setCtxMenu(null);
   };
 
   const redo = () => {
-    setFuture(f => {
-      const stack = f[board];
-      if (stack.length === 0) return f;
-      const next = stack[stack.length - 1];
-      const newStack = stack.slice(0, -1);
-      setBoards(b => {
-        setHistory(h => ({ ...h, [board]: [...h[board], b[board]].slice(-HISTORY_LIMIT) }));
-        return { ...b, [board]: next };
-      });
-      return { ...f, [board]: newStack };
-    });
+    const stack = future[board];
+    if (stack.length === 0) return;
+    const next = stack[stack.length - 1];
+    const cur = boards[board];
+    setFuture(f => ({ ...f, [board]: f[board].slice(0, -1) }));
+    setHistory(h => ({ ...h, [board]: [...h[board], cur].slice(-HISTORY_LIMIT) }));
+    setBoards(b => ({ ...b, [board]: next }));
     setSelection(null); setMultiSelection([]); setCtxMenu(null);
   };
 
@@ -239,6 +238,7 @@ function Index() {
     state.rooms.find(r => px >= r.x && px <= r.x + r.w && py >= r.y && py <= r.y + r.h);
 
   const addFurniture = (type: FurnitureType) => {
+    beginHistory();
     const target = state.rooms[0];
     const def = DEFAULTS[type];
     const cx = target ? target.x + target.w / 2 : 600;
@@ -290,6 +290,7 @@ function Index() {
   const deleteSelection = () => {
     const ids = multiSelection.length > 0 ? multiSelection : (selection && "id" in selection ? [selection.id] : []);
     if (ids.length === 0) return;
+    beginHistory();
     setState(s => ({
       ...s,
       furniture: s.furniture.filter(x => !ids.includes(x.id)),
@@ -304,6 +305,7 @@ function Index() {
 
   const duplicateSelection = () => {
     if (!selection) return;
+    beginHistory();
     if (selection.kind === "furniture") {
       const f = state.furniture.find(x => x.id === selection.id); if (!f) return;
       const dup = { ...f, id: uid(), x: f.x + 24, y: f.y + 24 };
@@ -340,6 +342,7 @@ function Index() {
 
   const pasteClipboard = () => {
     if (!clipboard) return;
+    beginHistory();
     if (clipboard.kind === "furniture") {
       const dup = { ...clipboard.data, id: uid(), x: clipboard.data.x + 30, y: clipboard.data.y + 30 };
       setState(s => ({ ...s, furniture: [...s.furniture, dup] }));
@@ -360,6 +363,7 @@ function Index() {
   const toggleLockSelection = () => {
     const ids = multiSelection.length > 0 ? multiSelection : (selection && "id" in selection ? [selection.id] : []);
     if (ids.length === 0) return;
+    beginHistory();
     setState(s => {
       const allLocked = ids.every(i => s.locked.includes(i));
       return { ...s, locked: allLocked ? s.locked.filter(i => !ids.includes(i)) : Array.from(new Set([...s.locked, ...ids])) };
@@ -369,6 +373,7 @@ function Index() {
 
   const groupSelection = () => {
     if (multiSelection.length < 2) return;
+    beginHistory();
     const gid = uid();
     setState(s => ({ ...s, groups: { ...s.groups, [gid]: [...multiSelection] } }));
     setCtxMenu(null);
@@ -376,6 +381,7 @@ function Index() {
 
   const ungroupSelection = () => {
     const ids = multiSelection.length > 0 ? multiSelection : (selection && "id" in selection ? [selection.id] : []);
+    beginHistory();
     setState(s => {
       const next = { ...s.groups };
       for (const gid of Object.keys(next)) {
@@ -389,6 +395,7 @@ function Index() {
   /** Reorder selected furniture in z-order. front/back move one step, top/bottom go all the way. */
   const reorder = (dir: "up" | "down" | "front" | "back") => {
     if (!selection || selection.kind !== "furniture") return;
+    beginHistory();
     setState(s => {
       const idx = s.furniture.findIndex(f => f.id === selection.id);
       if (idx < 0) return s;
@@ -406,6 +413,7 @@ function Index() {
   };
 
   const toggleOrderable = (id: string) => {
+    beginHistory();
     setState(s => ({ ...s, furniture: s.furniture.map(f => f.id === id ? { ...f, orderable: !f.orderable } : f) }));
   };
 
@@ -488,6 +496,7 @@ function Index() {
 
   const clearAll = () => {
     if (!confirm("Clear this board?")) return;
+    beginHistory();
     setState(emptyBoard());
     setSelection(null); setMultiSelection([]);
   };
@@ -512,6 +521,7 @@ function Index() {
   /** Reorder a furniture layer by drag-and-drop in the Layers panel. */
   const reorderLayer = (fromId: string, toId: string) => {
     if (fromId === toId) return;
+    beginHistory();
     setState(s => {
       // The layers panel renders furniture in reverse order (top item first).
       // We translate that to underlying array indices.
@@ -793,9 +803,10 @@ function Index() {
                   onUpdateRoom={updateR}
                   onUpdateDoor={updateD}
                   onUpdatePartition={updateP}
-                  onAddRoom={(r) => setState(s => ({ ...s, rooms: [...s.rooms, { ...r, name: ROOM_PRESETS[roomPresetIdx].name, fill: ROOM_PRESETS[roomPresetIdx].fill }] }))}
-                  onAddDoor={(d) => setState(s => ({ ...s, doors: [...s.doors, d] }))}
-                  onAddPartition={(pt) => setState(s => ({ ...s, partitions: [...s.partitions, pt] }))}
+                  onBeginEdit={beginHistory}
+                  onAddRoom={(r) => { beginHistory(); setState(s => ({ ...s, rooms: [...s.rooms, { ...r, name: ROOM_PRESETS[roomPresetIdx].name, fill: ROOM_PRESETS[roomPresetIdx].fill }] })); }}
+                  onAddDoor={(d) => { beginHistory(); setState(s => ({ ...s, doors: [...s.doors, d] })); }}
+                  onAddPartition={(pt) => { beginHistory(); setState(s => ({ ...s, partitions: [...s.partitions, pt] })); }}
                   onSetTool={setTool}
                   onContextMenu={onContextMenu}
                   onMarquee={onMarquee}

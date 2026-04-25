@@ -1053,10 +1053,35 @@ function Index() {
                     </div>
                   </div>
                 )}
+                {board === "salon" && selFurn && (
+                  <div className="flex items-center gap-3 border-b border-border p-3">
+                    <div className="grid h-10 w-10 place-items-center rounded-lg" style={{ background: selFurn.fill, opacity: Math.max(selFurn.opacity, 0.6) }}>
+                      {(() => {
+                        const Icon = SALON_PALETTE.find(p => p.type === selFurn.type)?.icon ?? Square;
+                        return <Icon className="h-5 w-5" style={{ color: selFurn.stroke }} />;
+                      })()}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-sm font-semibold">{selFurn.name}</div>
+                      <div className="text-[11px] text-muted-foreground">ID: {selFurn.id.slice(0, 6).toUpperCase()}</div>
+                    </div>
+                    <button onClick={() => setSelection(null)} className="rounded-md p-1 text-muted-foreground hover:bg-secondary hover:text-foreground" title="Close">
+                      ✕
+                    </button>
+                  </div>
+                )}
                 {selFurn && <FurnitureProps f={selFurn} onChange={(p) => updateF(selFurn.id, p)} onDelete={deleteSelection} onDuplicate={duplicateSelection} />}
                 {selRoom && <RoomProps r={selRoom} onChange={(p) => updateR(selRoom.id, p)} onDelete={deleteSelection} onDuplicate={duplicateSelection} />}
                 {selDoor && <DoorProps d={selDoor} onChange={(p) => updateD(selDoor.id, p)} onDelete={deleteSelection} />}
                 {selPart && <PartitionProps p={selPart} onChange={(patch) => updateP(selPart.id, patch)} onDelete={deleteSelection} onDuplicate={duplicateSelection} />}
+                {board === "salon" && (
+                  <div className="m-3 rounded-lg border border-primary/20 bg-primary/5 p-3 text-[11px] text-muted-foreground">
+                    <div className="mb-1 flex items-center gap-1.5 font-semibold text-foreground">
+                      <Sparkles className="h-3.5 w-3.5 text-primary" /> Tips
+                    </div>
+                    Drag and drop elements to design your salon layout. Click on any station to edit its properties.
+                  </div>
+                )}
               </div>
             )}
           </aside>

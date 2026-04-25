@@ -119,6 +119,7 @@ function Index() {
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number } | null>(null);
   const [clipboard, setClipboard] = useState<{ kind: "furniture"; data: Furniture } | { kind: "room"; data: Room } | { kind: "partition"; data: Partition } | null>(null);
   const [rightTab, setRightTab] = useState<"layers" | "props">("layers");
+  const [salonLeftTab, setSalonLeftTab] = useState<"elements" | "areas">("elements");
 
   const state = boards[board];
   const lockedSet = useMemo(() => new Set(state.locked), [state.locked]);
@@ -545,6 +546,12 @@ function Index() {
   const isSelLocked = selection && "id" in selection ? lockedSet.has(selection.id) : false;
   const currentBoardName = BOARDS.find(b => b.id === board)!.name;
 
+  // Salon-only station stats (Total / Active / In Service)
+  const SALON_STATION_TYPES: FurnitureType[] = ["salon-chair", "shampoo-chair", "massage-bed"];
+  const salonStations = state.furniture.filter(f => SALON_STATION_TYPES.includes(f.type));
+  const salonActive = salonStations.filter(f => f.orderable && !f.reserved).length;
+  const salonInService = salonStations.filter(f => f.reserved).length;
+
   // Compute overlapping items (z-index sorted) for the right-click menu
   const findOverlapping = (id: string): Furniture[] => {
     const f = state.furniture.find(x => x.id === id);
@@ -752,42 +759,132 @@ function Index() {
           <aside className="flex w-72 flex-col overflow-y-auto border-r border-border">
             <div className="sticky top-0 z-10 border-b border-border bg-card p-3">
               <div className="flex items-center justify-between">
-                <div className="text-sm font-semibold">Furniture</div>
+                <div className="text-sm font-semibold">{board === "salon" ? "Salon Layout" : "Furniture"}</div>
                 <span className="rounded-full bg-accent/40 px-2 py-0.5 text-[10px] uppercase tracking-wide text-accent-foreground">
                   {board === "salon" ? "Salon" : board === "restaurant" ? "Restaurant" : "Floor"}
                 </span>
               </div>
-              <div className="mt-2 flex items-center gap-2 rounded-lg bg-secondary px-2.5 py-1.5 text-sm">
-                <Search className="h-3.5 w-3.5 text-muted-foreground" />
-                <input placeholder="Search furniture..." className="flex-1 bg-transparent outline-none placeholder:text-muted-foreground" />
-              </div>
+              {board === "salon" ? (
+                <div className="mt-2 grid grid-cols-2 gap-1 rounded-lg bg-secondary p-1">
+                  <button onClick={() => setSalonLeftTab("elements")}
+                    className={`rounded-md py-1.5 text-xs font-medium transition ${salonLeftTab === "elements" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
+                    Elements
+                  </button>
+                  <button onClick={() => setSalonLeftTab("areas")}
+                    className={`rounded-md py-1.5 text-xs font-medium transition ${salonLeftTab === "areas" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
+                    Areas
+                  </button>
+                </div>
+              ) : (
+                <div className="mt-2 flex items-center gap-2 rounded-lg bg-secondary px-2.5 py-1.5 text-sm">
+                  <Search className="h-3.5 w-3.5 text-muted-foreground" />
+                  <input placeholder="Search furniture..." className="flex-1 bg-transparent outline-none placeholder:text-muted-foreground" />
+                </div>
+              )}
             </div>
 
             <div className="p-3">
-              {groups.map(g => (
-                <div key={g} className="mb-3">
-                  <div className="mb-1 px-1 text-[10px] uppercase tracking-wide text-muted-foreground">{g}</div>
-                  <div className="grid grid-cols-3 gap-1.5">
-                    {PALETTE.filter(p => p.group === g).map(el => {
-                      const def = DEFAULTS[el.type];
-                      return (
-                        <button key={el.type} onClick={() => addFurniture(el.type)}
-                          className="group flex flex-col items-center gap-1 rounded-lg border border-border bg-card p-2 text-[10px] transition hover:border-primary hover:bg-accent/30">
-                          <div className="grid h-9 w-9 place-items-center rounded-md" style={{ background: def.fill, opacity: def.opacity }}>
-                            <el.icon className="h-4 w-4" style={{ color: def.stroke }} />
-                          </div>
-                          <span className="text-center leading-tight">{def.name}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
+              {board === "salon" && salonLeftTab === "areas" ? (
+                <div className="space-y-1.5">
+                  <div className="mb-1 px-1 text-[10px] uppercase tracking-wide text-muted-foreground">Rooms / Areas</div>
+                  {state.rooms.length === 0 && (
+                    <div className="rounded-lg border border-dashed border-border p-4 text-center text-[11px] text-muted-foreground">
+                      No areas yet. Use the Room tool to draw a Wash, Facial Room, or Waiting Area.
+                    </div>
+                  )}
+                  {state.rooms.map(r => {
+                    const count = state.furniture.filter(f => f.roomId === r.id).length;
+                    const active = selection?.kind === "room" && selection.id === r.id;
+                    return (
+                      <button key={r.id} onClick={() => handleSelect({ kind: "room", id: r.id })}
+                        className={`flex w-full items-center gap-2 rounded-lg border px-2.5 py-2 text-left text-xs transition ${active ? "border-primary bg-accent/40" : "border-border hover:bg-secondary"}`}>
+                        <span className="h-6 w-6 shrink-0 rounded-md border border-border" style={{ background: r.fill }} />
+                        <span className="flex-1 truncate">
+                          <div className="font-medium">{r.name}</div>
+                          <div className="text-[10px] text-muted-foreground">{Math.round(r.w)} × {Math.round(r.h)} px</div>
+                        </span>
+                        <span className="rounded-full bg-secondary px-1.5 py-0.5 text-[9px] font-medium text-muted-foreground">{count}</span>
+                      </button>
+                    );
+                  })}
                 </div>
-              ))}
+              ) : (
+                <>
+                  {groups.map(g => (
+                    <div key={g} className="mb-3">
+                      <div className="mb-1 px-1 text-[10px] uppercase tracking-wide text-muted-foreground">
+                        {board === "salon" && g === "Service" ? "Service Stations" : g}
+                      </div>
+                      <div className={board === "salon" ? "space-y-1.5" : "grid grid-cols-3 gap-1.5"}>
+                        {PALETTE.filter(p => p.group === g).map(el => {
+                          const def = DEFAULTS[el.type];
+                          if (board === "salon") {
+                            return (
+                              <button key={el.type} onClick={() => addFurniture(el.type)}
+                                className="group flex w-full items-center gap-2.5 rounded-lg border border-border bg-card p-2 text-left text-xs transition hover:border-primary hover:bg-accent/30">
+                                <div className="grid h-9 w-9 shrink-0 place-items-center rounded-md" style={{ background: def.fill, opacity: def.opacity }}>
+                                  <el.icon className="h-4 w-4" style={{ color: def.stroke }} />
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <div className="truncate font-medium">{def.name}</div>
+                                  <div className="truncate text-[10px] text-muted-foreground">
+                                    {el.type === "salon-chair" ? "Haircut, Styling" :
+                                     el.type === "shampoo-chair" ? "Hair Wash" :
+                                     el.type === "massage-bed" ? "Massage, Facial" :
+                                     el.type === "waiting-sofa" ? "Waiting Area" :
+                                     el.type === "cash-counter" ? "Front Desk" :
+                                     el.type === "mirror" ? "Decor" :
+                                     el.type === "plant" ? "Decor" :
+                                     el.type === "lamp" ? "Decor" : ""}
+                                  </div>
+                                </div>
+                              </button>
+                            );
+                          }
+                          return (
+                            <button key={el.type} onClick={() => addFurniture(el.type)}
+                              className="group flex flex-col items-center gap-1 rounded-lg border border-border bg-card p-2 text-[10px] transition hover:border-primary hover:bg-accent/30">
+                              <div className="grid h-9 w-9 place-items-center rounded-md" style={{ background: def.fill, opacity: def.opacity }}>
+                                <el.icon className="h-4 w-4" style={{ color: def.stroke }} />
+                              </div>
+                              <span className="text-center leading-tight">{def.name}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </>
+              )}
             </div>
           </aside>
 
           {/* CANVAS */}
-          <main className="relative flex-1 overflow-hidden bg-canvas">
+          <main className="relative flex flex-1 flex-col overflow-hidden bg-canvas">
+            {board === "salon" && (
+              <div className="flex items-center justify-between border-b border-border bg-card/80 px-5 py-2.5 backdrop-blur">
+                <div className="flex items-center gap-2">
+                  <h2 className="text-base font-semibold tracking-tight">Salon Floor</h2>
+                  <button className="rounded-md p-1 text-muted-foreground hover:bg-secondary hover:text-foreground" title="Rename">
+                    <Sparkles className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+                <div className="flex items-center gap-4 text-xs">
+                  <span className="text-muted-foreground">
+                    Total Stations: <span className="font-semibold text-foreground">{salonStations.length}</span>
+                  </span>
+                  <span className="flex items-center gap-1.5 text-muted-foreground">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                    Active: <span className="font-semibold text-foreground">{salonActive}</span>
+                  </span>
+                  <span className="flex items-center gap-1.5 text-muted-foreground">
+                    <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+                    In Service: <span className="font-semibold text-foreground">{salonInService}</span>
+                  </span>
+                </div>
+              </div>
+            )}
+            <div className="relative flex-1 overflow-hidden">
             <div className="absolute inset-0 p-4">
               <div className="h-full w-full overflow-hidden rounded-xl bg-card shadow-sm ring-1 ring-border">
                 <FloorCanvas
@@ -872,6 +969,7 @@ function Index() {
                  selFurn ? selFurn.name : selRoom ? selRoom.name : selDoor ? "Door" : selPart ? "Partition" : "Select an item"}
               </span>
             </div>
+            </div>
           </main>
 
           {/* RIGHT: Layers (Figma style) + Properties tabs */}
@@ -955,10 +1053,35 @@ function Index() {
                     </div>
                   </div>
                 )}
+                {board === "salon" && selFurn && (
+                  <div className="flex items-center gap-3 border-b border-border p-3">
+                    <div className="grid h-10 w-10 place-items-center rounded-lg" style={{ background: selFurn.fill, opacity: Math.max(selFurn.opacity, 0.6) }}>
+                      {(() => {
+                        const Icon = SALON_PALETTE.find(p => p.type === selFurn.type)?.icon ?? Square;
+                        return <Icon className="h-5 w-5" style={{ color: selFurn.stroke }} />;
+                      })()}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-sm font-semibold">{selFurn.name}</div>
+                      <div className="text-[11px] text-muted-foreground">ID: {selFurn.id.slice(0, 6).toUpperCase()}</div>
+                    </div>
+                    <button onClick={() => setSelection(null)} className="rounded-md p-1 text-muted-foreground hover:bg-secondary hover:text-foreground" title="Close">
+                      ✕
+                    </button>
+                  </div>
+                )}
                 {selFurn && <FurnitureProps f={selFurn} onChange={(p) => updateF(selFurn.id, p)} onDelete={deleteSelection} onDuplicate={duplicateSelection} />}
                 {selRoom && <RoomProps r={selRoom} onChange={(p) => updateR(selRoom.id, p)} onDelete={deleteSelection} onDuplicate={duplicateSelection} />}
                 {selDoor && <DoorProps d={selDoor} onChange={(p) => updateD(selDoor.id, p)} onDelete={deleteSelection} />}
                 {selPart && <PartitionProps p={selPart} onChange={(patch) => updateP(selPart.id, patch)} onDelete={deleteSelection} onDuplicate={duplicateSelection} />}
+                {board === "salon" && (
+                  <div className="m-3 rounded-lg border border-primary/20 bg-primary/5 p-3 text-[11px] text-muted-foreground">
+                    <div className="mb-1 flex items-center gap-1.5 font-semibold text-foreground">
+                      <Sparkles className="h-3.5 w-3.5 text-primary" /> Tips
+                    </div>
+                    Drag and drop elements to design your salon layout. Click on any station to edit its properties.
+                  </div>
+                )}
               </div>
             )}
           </aside>

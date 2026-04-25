@@ -903,6 +903,7 @@ function Index() {
                  selFurn ? selFurn.name : selRoom ? selRoom.name : selDoor ? "Door" : selPart ? "Partition" : "Select an item"}
               </span>
             </div>
+            </div>
           </main>
 
           {/* RIGHT: Layers (Figma style) + Properties tabs */}

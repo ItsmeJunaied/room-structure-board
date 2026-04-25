@@ -609,52 +609,87 @@ function FurnitureShape({ f, onMouseDown, onContextMenu, onMouseEnter, onMouseLe
           <rect x={f.x + f.w - 3} y={f.y + f.h * 0.3} width={6} height={f.h * 0.65} rx={3} fill={f.stroke} opacity={0.35} pointerEvents="none" />
         </g>
       );
-    case "salon-chair":
-      return (
-        <g {...handlers} style={{ cursor: "move" }}>
-         {/* full-bounds hit target */}
-         <rect x={f.x} y={f.y} width={f.w} height={f.h} fill="transparent" />
-          {/* invisible full-bounds hit target so clicks anywhere on chair register */}
-          <rect x={f.x} y={f.y} width={f.w} height={f.h} fill="transparent" />
-          <ellipse cx={cx} cy={f.y + f.h * 0.94} rx={f.w * 0.28} ry={f.h * 0.06} fill={f.stroke} opacity={0.35} pointerEvents="none" />
-          <ellipse cx={cx} cy={f.y + f.h * 0.85} rx={f.w * 0.42} ry={f.h * 0.06} fill={f.stroke} opacity={0.85} pointerEvents="none" />
-          <line x1={cx} y1={f.y + f.h * 0.7} x2={cx} y2={f.y + f.h * 0.85} stroke={f.stroke} strokeWidth={3} opacity={0.7} pointerEvents="none" />
-          <rect x={f.x + 2} y={f.y + f.h * 0.5} width={f.w - 4} height={f.h * 0.22} rx={6} fill={f.fill} stroke={f.stroke} strokeWidth={1.4} opacity={f.opacity} pointerEvents="none" />
-          <rect x={f.x + f.w * 0.1} y={f.y + f.h * 0.05} width={f.w * 0.8} height={f.h * 0.5} rx={f.w * 0.2} fill={f.fill} stroke={f.stroke} strokeWidth={1.4} opacity={f.opacity} pointerEvents="none" />
-          <rect x={f.x + f.w * 0.25} y={f.y + f.h * 0.08} width={f.w * 0.5} height={f.h * 0.13} rx={6} fill="white" opacity={0.25} pointerEvents="none" />
-          <circle cx={f.x + f.w * 0.3} cy={f.y + f.h * 0.32} r={2.5} fill="white" opacity={0.6} pointerEvents="none" />
-          <rect x={f.x - 3} y={f.y + f.h * 0.45} width={6} height={f.h * 0.22} rx={3} fill={f.stroke} opacity={0.55} pointerEvents="none" />
-          <rect x={f.x + f.w - 3} y={f.y + f.h * 0.45} width={6} height={f.h * 0.22} rx={3} fill={f.stroke} opacity={0.55} pointerEvents="none" />
-        </g>
-      );
-    case "shampoo-chair":
-      return (
-        <g {...handlers} style={{ cursor: "move" }}>
-         {/* full-bounds hit target */}
-         <rect x={f.x} y={f.y} width={f.w} height={f.h} fill="transparent" />
-          {/* invisible full-bounds hit target */}
-          <rect x={f.x} y={f.y} width={f.w} height={f.h} fill="transparent" />
-          <ellipse cx={cx} cy={f.y + f.h * 0.14} rx={f.w * 0.42} ry={f.h * 0.1} fill="#E6EEF3" stroke={f.stroke} strokeWidth={1.4} opacity={f.opacity} pointerEvents="none" />
-          <ellipse cx={cx} cy={f.y + f.h * 0.13} rx={f.w * 0.3} ry={f.h * 0.06} fill="white" opacity={0.7} pointerEvents="none" />
-          <rect x={cx - 2} y={f.y - 4} width={4} height={10} rx={1.5} fill={f.stroke} pointerEvents="none" />
-          <rect x={f.x + f.w * 0.3} y={f.y + f.h * 0.22} width={f.w * 0.4} height={f.h * 0.08} rx={4} fill={f.stroke} opacity={0.5} pointerEvents="none" />
-          <rect x={f.x + 4} y={f.y + f.h * 0.32} width={f.w - 8} height={f.h * 0.55} rx={f.radius} fill={f.fill} stroke={f.stroke} strokeWidth={1.4} opacity={f.opacity} pointerEvents="none" />
-          <rect x={f.x + 8} y={f.y + f.h * 0.4} width={f.w - 16} height={f.h * 0.18} rx={6} fill="white" opacity={0.25} pointerEvents="none" />
-          <line x1={f.x + 8} y1={f.y + f.h * 0.62} x2={f.x + f.w - 8} y2={f.y + f.h * 0.62} stroke={f.stroke} strokeWidth={0.8} opacity={0.4} pointerEvents="none" />
-          <rect x={f.x + f.w * 0.2} y={f.y + f.h * 0.88} width={f.w * 0.6} height={f.h * 0.1} rx={4} fill={f.stroke} opacity={0.55} pointerEvents="none" />
-        </g>
-      );
-    case "massage-bed":
+    case "salon-chair": {
+      // Barber/salon chair (top-down): rounded backrest at top, seat, armrests, footrest
+      const cxC = f.x + f.w / 2;
+      const seatTop = f.y + f.h * 0.30;
+      const seatBot = f.y + f.h * 0.78;
       return (
         <g {...handlers} style={{ cursor: "move" }}>
           {/* full-bounds hit target */}
           <rect x={f.x} y={f.y} width={f.w} height={f.h} fill="transparent" />
-          <rect x={f.x} y={f.y} width={f.w} height={f.h} rx={f.radius} {...common} />
-          <circle cx={f.x + 22} cy={cy} r={Math.min(14, f.h / 3)} fill="white" opacity={0.6} stroke={f.stroke} strokeWidth={1} pointerEvents="none" />
-          <line x1={f.x + f.w * 0.45} y1={f.y + 6} x2={f.x + f.w * 0.45} y2={f.y + f.h - 6} stroke={f.stroke} strokeWidth={0.8} opacity={0.5} pointerEvents="none" />
-          <rect x={f.x + f.w * 0.55} y={f.y + 6} width={f.w * 0.4} height={f.h - 12} rx={4} fill="white" opacity={0.5} pointerEvents="none" />
+          {/* round base shadow */}
+          <ellipse cx={cxC} cy={f.y + f.h * 0.95} rx={f.w * 0.42} ry={f.h * 0.05} fill="#000" opacity={0.15} pointerEvents="none" />
+          {/* circular base plate */}
+          <ellipse cx={cxC} cy={f.y + f.h * 0.88} rx={f.w * 0.46} ry={f.h * 0.09} fill="#9CA3AF" stroke={f.stroke} strokeWidth={1} pointerEvents="none" />
+          <ellipse cx={cxC} cy={f.y + f.h * 0.86} rx={f.w * 0.34} ry={f.h * 0.06} fill="#D1D5DB" pointerEvents="none" />
+          {/* hydraulic post */}
+          <rect x={cxC - 4} y={f.y + f.h * 0.72} width={8} height={f.h * 0.16} fill="#6B7280" pointerEvents="none" />
+          {/* footrest */}
+          <rect x={cxC - f.w * 0.18} y={f.y + f.h * 0.78} width={f.w * 0.36} height={f.h * 0.06} rx={2} fill="#9CA3AF" stroke={f.stroke} strokeWidth={0.8} pointerEvents="none" />
+          {/* seat (rounded square) */}
+          <rect x={f.x + f.w * 0.10} y={seatTop} width={f.w * 0.80} height={seatBot - seatTop} rx={Math.min(f.w, f.h) * 0.18}
+            fill={f.fill} stroke={f.stroke} strokeWidth={1.4} opacity={f.opacity} pointerEvents="none" />
+          {/* armrests */}
+          <rect x={f.x + f.w * 0.02} y={f.y + f.h * 0.42} width={f.w * 0.12} height={f.h * 0.28} rx={4} fill={f.fill} stroke={f.stroke} strokeWidth={1.2} opacity={f.opacity} pointerEvents="none" />
+          <rect x={f.x + f.w * 0.86} y={f.y + f.h * 0.42} width={f.w * 0.12} height={f.h * 0.28} rx={4} fill={f.fill} stroke={f.stroke} strokeWidth={1.2} opacity={f.opacity} pointerEvents="none" />
+          {/* backrest (taller, more pronounced rounded headrest at top) */}
+          <rect x={f.x + f.w * 0.16} y={f.y + f.h * 0.04} width={f.w * 0.68} height={f.h * 0.32} rx={f.w * 0.30}
+            fill={f.fill} stroke={f.stroke} strokeWidth={1.4} opacity={f.opacity} pointerEvents="none" />
+          {/* highlight on backrest */}
+          <rect x={f.x + f.w * 0.26} y={f.y + f.h * 0.08} width={f.w * 0.48} height={f.h * 0.10} rx={f.w * 0.20} fill="white" opacity={0.22} pointerEvents="none" />
+          {/* seat cushion seam */}
+          <line x1={cxC} y1={seatTop + 4} x2={cxC} y2={seatBot - 4} stroke={f.stroke} strokeWidth={0.8} opacity={0.35} pointerEvents="none" />
         </g>
       );
+    }
+    case "shampoo-chair": {
+      // Wash station: large oval basin (blue), faucet, small seat behind
+      const cxC = f.x + f.w / 2;
+      return (
+        <g {...handlers} style={{ cursor: "move" }}>
+          <rect x={f.x} y={f.y} width={f.w} height={f.h} fill="transparent" />
+          {/* base plate */}
+          <rect x={f.x + f.w * 0.05} y={f.y + f.h * 0.12} width={f.w * 0.90} height={f.h * 0.78} rx={Math.min(f.w, f.h) * 0.15}
+            fill="#F1F5F9" stroke={f.stroke} strokeWidth={1.2} opacity={f.opacity} pointerEvents="none" />
+          {/* faucet */}
+          <rect x={cxC - 3} y={f.y + f.h * 0.06} width={6} height={f.h * 0.10} rx={1.5} fill="#94A3B8" stroke={f.stroke} strokeWidth={0.8} pointerEvents="none" />
+          <rect x={cxC - 8} y={f.y + f.h * 0.04} width={16} height={4} rx={1} fill="#64748B" pointerEvents="none" />
+          {/* basin (blue oval) */}
+          <ellipse cx={cxC} cy={f.y + f.h * 0.40} rx={f.w * 0.36} ry={f.h * 0.18}
+            fill="#7DD3FC" stroke={f.stroke} strokeWidth={1.4} opacity={f.opacity} pointerEvents="none" />
+          <ellipse cx={cxC} cy={f.y + f.h * 0.38} rx={f.w * 0.28} ry={f.h * 0.13}
+            fill="#BAE6FD" opacity={0.85} pointerEvents="none" />
+          {/* neck rest cutout */}
+          <rect x={cxC - f.w * 0.12} y={f.y + f.h * 0.55} width={f.w * 0.24} height={f.h * 0.06} rx={3} fill="#94A3B8" opacity={0.5} pointerEvents="none" />
+          {/* small reclined seat hint */}
+          <rect x={f.x + f.w * 0.18} y={f.y + f.h * 0.65} width={f.w * 0.64} height={f.h * 0.20} rx={f.w * 0.10}
+            fill={f.fill} stroke={f.stroke} strokeWidth={1.2} opacity={f.opacity * 0.9} pointerEvents="none" />
+        </g>
+      );
+    }
+    case "massage-bed": {
+      // Pink massage bed: long rectangle, rounded ends, darker headrest pillow at one end
+      const headH = f.h * 0.22;
+      return (
+        <g {...handlers} style={{ cursor: "move" }}>
+          <rect x={f.x} y={f.y} width={f.w} height={f.h} fill="transparent" />
+          {/* bed body */}
+          <rect x={f.x} y={f.y} width={f.w} height={f.h} rx={Math.min(f.w, f.h) * 0.18}
+            fill={f.fill} stroke={f.stroke} strokeWidth={1.4} opacity={f.opacity} pointerEvents="none" />
+          {/* mattress highlight */}
+          <rect x={f.x + 4} y={f.y + headH + 4} width={f.w - 8} height={f.h - headH - 8} rx={Math.min(f.w, f.h) * 0.12}
+            fill="white" opacity={0.18} pointerEvents="none" />
+          {/* headrest pillow (darker, top) */}
+          <rect x={f.x + f.w * 0.10} y={f.y + 4} width={f.w * 0.80} height={headH} rx={Math.min(f.w, f.h) * 0.10}
+            fill={f.stroke} opacity={0.55} pointerEvents="none" />
+          {/* face cradle hole */}
+          <ellipse cx={f.x + f.w / 2} cy={f.y + headH / 2 + 4} rx={f.w * 0.14} ry={headH * 0.30} fill="#1F2937" opacity={0.5} pointerEvents="none" />
+          {/* divider seam */}
+          <line x1={f.x + 6} y1={f.y + headH + 4} x2={f.x + f.w - 6} y2={f.y + headH + 4} stroke={f.stroke} strokeWidth={0.8} opacity={0.4} pointerEvents="none" />
+        </g>
+      );
+    }
     case "cash-counter":
       return (
         <g {...handlers} style={{ cursor: "move" }}>

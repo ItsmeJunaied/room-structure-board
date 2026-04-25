@@ -119,6 +119,7 @@ function Index() {
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number } | null>(null);
   const [clipboard, setClipboard] = useState<{ kind: "furniture"; data: Furniture } | { kind: "room"; data: Room } | { kind: "partition"; data: Partition } | null>(null);
   const [rightTab, setRightTab] = useState<"layers" | "props">("layers");
+  const [salonLeftTab, setSalonLeftTab] = useState<"elements" | "areas">("elements");
 
   const state = boards[board];
   const lockedSet = useMemo(() => new Set(state.locked), [state.locked]);

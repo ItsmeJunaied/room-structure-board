@@ -884,6 +884,7 @@ function Index() {
                 </div>
               </div>
             )}
+            <div className="relative flex-1 overflow-hidden">
             <div className="absolute inset-0 p-4">
               <div className="h-full w-full overflow-hidden rounded-xl bg-card shadow-sm ring-1 ring-border">
                 <FloorCanvas

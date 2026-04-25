@@ -794,7 +794,31 @@ function Index() {
           </aside>
 
           {/* CANVAS */}
-          <main className="relative flex-1 overflow-hidden bg-canvas">
+          <main className="relative flex flex-1 flex-col overflow-hidden bg-canvas">
+            {board === "salon" && (
+              <div className="flex items-center justify-between border-b border-border bg-card/80 px-5 py-2.5 backdrop-blur">
+                <div className="flex items-center gap-2">
+                  <h2 className="text-base font-semibold tracking-tight">Salon Floor</h2>
+                  <button className="rounded-md p-1 text-muted-foreground hover:bg-secondary hover:text-foreground" title="Rename">
+                    <Sparkles className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+                <div className="flex items-center gap-4 text-xs">
+                  <span className="text-muted-foreground">
+                    Total Stations: <span className="font-semibold text-foreground">{salonStations.length}</span>
+                  </span>
+                  <span className="flex items-center gap-1.5 text-muted-foreground">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                    Active: <span className="font-semibold text-foreground">{salonActive}</span>
+                  </span>
+                  <span className="flex items-center gap-1.5 text-muted-foreground">
+                    <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+                    In Service: <span className="font-semibold text-foreground">{salonInService}</span>
+                  </span>
+                </div>
+              </div>
+            )}
+            <div className="relative flex-1 overflow-hidden">
             <div className="absolute inset-0 p-4">
               <div className="h-full w-full overflow-hidden rounded-xl bg-card shadow-sm ring-1 ring-border">
                 <FloorCanvas

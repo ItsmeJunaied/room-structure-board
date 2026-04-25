@@ -546,6 +546,12 @@ function Index() {
   const isSelLocked = selection && "id" in selection ? lockedSet.has(selection.id) : false;
   const currentBoardName = BOARDS.find(b => b.id === board)!.name;
 
+  // Salon-only station stats (Total / Active / In Service)
+  const SALON_STATION_TYPES: FurnitureType[] = ["salon-chair", "shampoo-chair", "massage-bed"];
+  const salonStations = state.furniture.filter(f => SALON_STATION_TYPES.includes(f.type));
+  const salonActive = salonStations.filter(f => f.orderable && !f.reserved).length;
+  const salonInService = salonStations.filter(f => f.reserved).length;
+
   // Compute overlapping items (z-index sorted) for the right-click menu
   const findOverlapping = (id: string): Furniture[] => {
     const f = state.furniture.find(x => x.id === id);
